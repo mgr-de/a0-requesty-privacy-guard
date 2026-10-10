@@ -1,7 +1,14 @@
 <p align="center"><img src="assets/icon.svg" alt="Requesty Privacy Guard" width="128" height="128"></p>
 # Requesty for Agent Zero 2.13
 
-Version 0.1.1, tested on Agent Zero v2.13 in an isolated Docker instance. Test your own model choices before production use.
+[![Agent Zero Plugin](https://img.shields.io/badge/Agent%20Zero-Plugin-blue)](https://github.com/agent0ai/agent-zero)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+Version 0.1.2, tested on Agent Zero v2.13 in an isolated Docker instance. Test your own model choices before production use.
+
+## Related plugin
+
+This plugin pairs with [Local Privacy Guard](https://github.com/mgr-de/a0-local-privacy-guard), from the same authors. Requesty Privacy Guard controls **where** your model traffic is routed (EU router, provider ZDR, no training); Local Privacy Guard anonymizes **what** is sent (PII filtering before every LLM call) and keeps memory embeddings fully local. Use both together for end-to-end data protection.
 
 0.1.1 fixes Agent Zero 2.13's chat model gate checking global credentials instead of a per-chat preset. A native JSON API extension attaches the current/pending chat context to the empty model-status request. Explicit scopes and global preset editor requests are preserved; backend key checks and all Requesty runtime privacy guards remain active.
 
@@ -38,7 +45,7 @@ The recovery button undoes the latest preset creation only while newer preset ed
 
 Before disabling or uninstalling, select another existing preset for all affected chats, projects and profiles. Disabled plugin presets use the deliberately nonstandard `requesty_guarded` provider ID and are intended to fail closed rather than fall through to a built-in Requesty route. Settings remain accessible without successful model inference.
 
-Installation/update hooks reload provider metadata; no packages or background services are installed. Uninstall preserves shared API keys and presets rather than deleting unrelated configuration. Plugin-local settings and recovery data are removed with the plugin directory by Agent Zero.
+Installation/update hooks reload provider metadata; no packages or background services are installed. Uninstall automatically removes presets that use the guarded `requesty_guarded` provider and repairs all references to them back to the Default preset (chats, projects, profiles), so no broken model configuration can outlive the plugin. Shared API keys and presets without the guarded provider are preserved. Plugin-local settings and recovery data are removed with the plugin directory by Agent Zero.
 
 Back up the instance before production use while all writers are stopped. Include project-scoped Memory in addition to `usr/memory`, along with settings, model presets and required secrets. Restore into a separate volume and verify before applying changes to the original instance.
 
