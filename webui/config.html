@@ -1,0 +1,42 @@
+<html>
+<head><title>Requesty</title><script type="module" src="/plugins/requesty/webui/requesty-store.js"></script></head>
+<body>
+<div x-data>
+<template x-if="$store.requesty">
+<div x-init="$store.requesty.onOpen()" x-destroy="$store.requesty.cleanup()" style="display:flex;flex-direction:column;gap:1rem">
+  <p>These settings apply to Requesty requests. Existing embeddings and local memories are preserved.</p>
+  <p>Memory protection: When Requesty is the Utility model, automatic memory updates append new entries without consolidating or replacing existing entries. Recall remains available. Manual memory changes continue to use standard Agent Zero functions.</p>
+  <div class="field"><label for="requesty-key">API key <span x-text="$store.requesty.hasKey ? '(saved)' : '(not saved yet)'"></span></label>
+    <input id="requesty-key" type="password" autocomplete="off" x-model="$store.requesty.key" placeholder="Enter a new API key" />
+    <button class="btn btn-field" type="button" @click="$store.requesty.saveKey()" :disabled="$store.requesty.busy || !$store.requesty.key">Save API key</button>
+  </div>
+  <div class="field"><label for="requesty-region">Requesty router</label>
+    <select id="requesty-region" x-model="config.region"><option value="eu">EU · Frankfurt</option><option value="us">US</option><option value="ap">AP</option><option value="global">Global</option></select>
+  </div>
+  <label><input type="checkbox" x-model="config.strict_region" /> Restrict model processing to the selected region</label>
+  <label><input type="checkbox" x-model="config.no_retention" /> Require zero data retention by the model provider</label>
+  <label><input type="checkbox" x-model="config.no_training" /> Require no training by the model provider</label>
+  <label><input type="checkbox" x-model="config.require_requesty_zdr" /> Require verified Requesty organization ZDR</label>
+  <p>Requesty ZDR: <strong>cannot be verified through the documented API</strong>. Enabling this requirement currently blocks all requests. Model provider ZDR is checked separately in the model catalog. These settings do not affect Requesty metadata or local chats and memory.</p>
+  <p>Save these settings using the standard Save button before creating a preset. Catalog information comes from the provider and is not independent proof of actual processing.</p>
+  <button class="btn btn-field" type="button" @click="$store.requesty.refresh(config)" :disabled="$store.requesty.busy">Check connection and load models</button>
+  <label for="requesty-search">Search models</label><input type="text" id="requesty-search" x-model="$store.requesty.search" />
+  <label><input type="checkbox" x-model="$store.requesty.showRejected" /> Show excluded models with rejection reasons</label>
+  <div style="overflow:auto;max-height:20rem"><table style="width:100%"><thead><tr><th>Model</th><th>Location</th><th>Policy check</th></tr></thead><tbody>
+    <template x-for="model in $store.requesty.filtered()" :key="model.id"><tr><td x-text="model.id"></td><td x-text="model.geolocation || 'unknown'"></td><td x-text="model.allowed ? 'Meets requirements' : model.reasons.join(' ')"></td></tr></template>
+  </tbody></table></div>
+  <label for="requesty-main">Main model</label><select id="requesty-main" x-model="$store.requesty.main"><option value="">Select a model</option><template x-for="model in $store.requesty.models.filter(m => m.allowed)" :key="model.id"><option :value="model.id" x-text="model.id"></option></template></select>
+  <label for="requesty-utility">Utility model · Memory queries and processing</label><select id="requesty-utility" x-model="$store.requesty.utility"><option value="">Select a model</option><template x-for="model in $store.requesty.models.filter(m => m.allowed)" :key="model.id"><option :value="model.id" x-text="model.id"></option></template></select>
+  <label for="requesty-preset">New preset name</label><input type="text" id="requesty-preset" x-model="$store.requesty.presetName" maxlength="80" />
+  <p>Model tests send only a fixed synthetic JSON task to the selected models: at most two requests with up to 256 output tokens each. Small API charges may apply.</p>
+  <button class="btn btn-field" type="button" @click="$store.requesty.testModels(config)" :disabled="$store.requesty.busy || !$store.requesty.main || !$store.requesty.utility || $store.requesty.catalogPolicy !== JSON.stringify(config)">Test Main and Utility models</button>
+  <button class="btn btn-field" type="button" @click="$store.requesty.createPreset(config)" :disabled="$store.requesty.busy || !$store.requesty.ticket || $store.requesty.testState !== JSON.stringify([config, $store.requesty.main, $store.requesty.utility]) || $store.requesty.catalogPolicy !== JSON.stringify(config)">Create validated preset</button>
+  <p>Creating a preset does not activate a model. The embedding configuration is preserved; the separate Vision slot is disabled in the new preset. Select the preset in a test chat first.</p>
+  <button class="btn btn-field" type="button" @click="$store.requesty.recover()" :disabled="$store.requesty.busy">Undo last preset creation</button>
+  <p>Before disabling or uninstalling this plugin, select another existing preset in all affected chats, projects, and profiles.</p>
+</div>
+</template>
+</div>
+</body>
+</html>
+

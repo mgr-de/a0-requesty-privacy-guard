@@ -1,0 +1,8 @@
+name: requesty
+title: Requesty
+description: Requesty models with verified provider privacy and regional routing controls.
+version: 0.1.2
+settings_sections:
+  - agent
+per_project_config: false
+per_agent_config: false

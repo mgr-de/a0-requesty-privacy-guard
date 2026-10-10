@@ -1,0 +1,5 @@
+region: eu
+strict_region: true
+no_retention: true
+no_training: true
+require_requesty_zdr: false
