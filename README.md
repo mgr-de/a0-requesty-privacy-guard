@@ -1,3 +1,4 @@
+<p align="center"><img src="assets/icon.svg" alt="Requesty Privacy Guard" width="128" height="128"></p>
 # Requesty for Agent Zero 2.13
 
 Version 0.1.1, tested on Agent Zero v2.13 in an isolated Docker instance. Test your own model choices before production use.
