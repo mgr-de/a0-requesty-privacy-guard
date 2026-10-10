@@ -16,8 +16,27 @@ def pre_update(**kwargs):
 
 def uninstall(**kwargs):
     # No provider files outside this plugin, no services or installed dependencies.
-    # Keep presets and API keys: deleting shared user configuration here would be unsafe.
+    # API keys are shared user configuration and are kept. Presets created by this
+    # plugin reference the guarded provider and would crash model calls without it,
+    # so they are removed and their references repaired to Default here.
     catalog.clear()
+    result = {"status": "ok", "cleanup": None}
+    try:
+        from usr.plugins.requesty.helpers.cleanup import remove_guarded_presets
+        result["cleanup"] = remove_guarded_presets()
+    except Exception as exc:
+        result["status"] = "cleanup_unavailable"
+        result["note"] = f"automatic preset cleanup could not run: {exc}"
+    # Remove the plugin-owned recovery journal and cached catalog.
+    try:
+        from helpers import files
+        journal_dir = files.get_abs_path("usr/plugins/requesty")
+        if files.exists(journal_dir):
+            files.delete_dir(journal_dir)
+            result["recovery_removed"] = True
+    except Exception:
+        pass
+    return result
 
 
 def save_plugin_config(settings=None, project_name="", agent_profile="", **kwargs):
