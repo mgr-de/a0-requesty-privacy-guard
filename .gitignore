@@ -15,3 +15,6 @@ recovery.json
 # Logs and OS cruft
 *.log
 .DS_Store
+
+# Plugin toggle state (runtime, must not be published)
+.toggle-*
