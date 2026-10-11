@@ -79,3 +79,11 @@ At a 390px viewport width and equivalent 200% zoom, verify control reachability,
   changes.
 - No test exercises a real model call through the guarded provider (needs
   network + credentials).
+
+## Completed opt-in privacy integration tests (2026-10-11)
+
+The subsequent real-model comparison used synthetic data, local Ollama and eight authorized live Requesty calls. It is separate from the earlier mocked release validation above. See [results and limitations](PII-TEST-RESULTS.md).
+
+Acceptance requires separate results for detection, exact input roundtrip, identity continuity, current relationships/debts, strict response format, outgoing payloads, reasoning/final answers, streaming, context compaction, real memory retrieval, restart and profile ownership. Original values in the browser are expected; original values in external requests are the privacy finding. Null known-value matches do not establish general PII freedom.
+
+The reproducible opt-in harness is in [Local Privacy Guard's integration tools](https://github.com/mgr-de/a0-local-privacy-guard/tree/ux/private-user-setup/tools/privacy_benchmark). It is not collected by the ordinary offline test suite. Hosted Requesty PII scanner accuracy is not covered by these model-routing tests.

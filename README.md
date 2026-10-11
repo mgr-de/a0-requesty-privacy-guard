@@ -27,6 +27,16 @@ Requesty routing and provider data rules are checked against authenticated catal
 - Requesty's own organization retention is not verified or changed by this plugin.
 - Local chats, logs and memory are not deleted by remote ZDR.
 
+### Local masking versus hosted PII scanning
+
+Original names and contacts should remain readable in the local browser. Privacy checks must examine what is sent to external services. Local Privacy Guard reduces disclosure by replacing detected values before supported calls; automatic detection does not guarantee complete anonymization.
+
+Requesty's hosted Guardrails receive your request before masking it for the model provider. Fast and model-based ML scanners are available on standard and Enterprise plans. Report sends content unchanged; Mask replaces detected values and restores matching replacements in replies. This plugin does not configure or verify those organization/group Guardrails. [Requesty documentation](https://docs.requesty.ai/features/guardrails)
+
+Zero Data Retention concerns storage; it does not prevent transmission or necessary processing at Requesty. For the goal of keeping original details on the device, local masking is the first layer and hosted scanning can supplement it. Neither higher accuracy nor complete multilingual coverage has been established by our tests. [Requesty privacy policy](https://www.requesty.ai/privacy)
+
+See [the integration test findings](docs/PII-TEST-RESULTS.md) for actual outgoing-request checks, long conversations, reasoning, memory, restart and profile boundaries. The eight live Requesty model calls did not evaluate Requesty's PII scanner.
+
 While active, a profile uses a separate memory folder identified by its project/profile combination. Existing shared memory is preserved and is not copied automatically. Automatic memory updates append entries without consolidating or replacing old entries. Saved native Memory settings are unchanged. Other profiles keep their own settings and indexes. If Local Privacy Guard is also active, its profile/model-specific memory folder takes precedence. Embedding models remain under native configuration or Local Privacy Guard.
 
 Main and Utility wrappers guard unified calls and LangChain invoke/stream paths. Existing wrapper instances recheck their owning profile at request time and stop after setup changes or deactivation. A separate Vision sidecar is blocked while the setup is active; native Main image support depends on catalog metadata. Catalog caches are separated by router and a hash of the profile key, and return copies.
@@ -41,7 +51,7 @@ Legacy global keys, presets, embedding backups and recovery files are preserved 
 
 ## Validation
 
-Tests use Agent Zero's actual framework, temporary profile directories, synthetic keys and mocked catalog/model transports. No live paid provider calls were made for this version. They cover two-profile separation, setup/deactivation, expired or profile-crossing tickets, old wrapper objects, scoped Memory settings, native chat-gate status without returning credentials, streaming and failure behavior.
+The regression suite uses Agent Zero's actual framework, temporary profile directories, synthetic keys and mocked catalog/model transports. It makes no live paid provider calls. It covers two-profile separation, setup/deactivation, expired or profile-crossing tickets, old wrapper objects, scoped Memory settings, native chat-gate status without returning credentials, streaming and failure behavior. A separate opt-in integration series subsequently made eight authorized live model calls; see the linked findings for its scope and limitations.
 
 ```sh
 cd /a0

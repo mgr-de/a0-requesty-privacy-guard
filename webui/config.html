@@ -16,7 +16,14 @@
     <strong>These models run outside your device.</strong>
     <p>Local embeddings do not prevent conversation or recalled memory text from being sent to a helper model. Local Privacy Guard can replace detected personal details before supported calls; it cannot guarantee complete detection.</p>
     <p>Provider rules below are checked against Requesty's catalog, not independently audited. They do not delete local chats, memory or logs, or verify Requesty's own retention.</p>
+    <p>Requesty's hosted PII scanning happens after your text reaches Requesty. Local masking must happen before sending if you want to reduce the personal details Requesty receives. Neither scanner guarantees complete anonymization.</p>
   </aside>
+  <details class="privacy-card"><summary>Local masking and Requesty PII scanning</summary>
+    <p>Original details may remain visible in your local browser. That does not mean they should be present in outgoing requests.</p>
+    <p>Requesty offers Fast and model-based ML scanners on standard and Enterprise plans. Report only records detections and sends text unchanged; Mask replaces detected values before the model provider receives them. This plugin does not enable or verify those organization or group settings.</p>
+    <p>Zero Data Retention concerns storage, not the transmission or processing of your text. Higher detection accuracy must be tested with your languages and long conversations.</p>
+    <p><a href="https://docs.requesty.ai/features/guardrails" target="_blank" rel="noopener noreferrer">Requesty Guardrails documentation</a></p>
+  </details>
   <div class="privacy-status" role="status" aria-live="polite">
     <strong>Next step</strong>
     <p x-text="$store.requesty.nextStep(config, context.hasUnsavedChanges)"></p>
