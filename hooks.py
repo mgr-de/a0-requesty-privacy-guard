@@ -1,5 +1,6 @@
 """Lifecycle is non-destructive: no dependencies, services or active model changes."""
 from dataclasses import asdict
+from pathlib import Path
 from usr.plugins.requesty.helpers.policy import Policy, PolicyError
 from usr.plugins.requesty.helpers import catalog
 
@@ -27,12 +28,14 @@ def uninstall(**kwargs):
     except Exception as exc:
         result["status"] = "cleanup_unavailable"
         result["note"] = f"automatic preset cleanup could not run: {exc}"
-    # Remove the plugin-owned recovery journal and cached catalog.
+    # Remove only the plugin-owned recovery journal. The plugin directory
+    # itself must stay intact: the framework's delete_plugin() removes the
+    # plugin folder after this hook returns and fails with FileNotFoundError
+    # (skipping cache/module cleanup) if the folder is already gone.
     try:
-        from helpers import files
-        journal_dir = files.get_abs_path("usr/plugins/requesty")
-        if files.exists(journal_dir):
-            files.delete_dir(journal_dir)
+        journal = Path(__file__).parent / "recovery.json"
+        if journal.exists():
+            journal.unlink()
             result["recovery_removed"] = True
     except Exception:
         pass
