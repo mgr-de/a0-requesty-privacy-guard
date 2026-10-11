@@ -7,8 +7,10 @@
 <body>
 <div x-data>
 <template x-if="$store.requesty && config">
-<div class="privacy-settings" x-init="$store.requesty.onOpen()" x-destroy="$store.requesty.cleanup()" :aria-busy="$store.requesty.busy">
+<div class="privacy-settings" x-init="$store.requesty.onOpen(context)" x-destroy="$store.requesty.cleanup()" x-effect="$store.requesty.setScope(context)" :aria-busy="$store.requesty.busy">
   <h2>Private model setup</h2>
+  <aside class="privacy-note"><strong>One agent profile at a time.</strong><p>Choose an Agent profile in the toolbar. Keys, privacy rules, model setup and memory storage belong to this selected profile. Global presets and keys are never changed.</p><p x-text="context.agentProfileKey ? 'Selected profile: ' + context.agentProfileKey : 'No profile selected — setup actions are unavailable.'"></p></aside>
+  <fieldset :disabled="!context.agentProfileKey"><legend>Profile setup</legend>
   <p>Choose where supported Requesty model requests are processed and which provider data rules they must meet.</p>
   <aside class="privacy-note">
     <strong>These models run outside your device.</strong>
@@ -23,7 +25,7 @@
   <p class="privacy-error" role="alert" x-show="$store.requesty.error" x-text="$store.requesty.error"></p>
   <section class="privacy-card" aria-labelledby="requesty-access-title">
     <h3 id="requesty-access-title">1. Connect your account</h3>
-    <p>You need a Requesty account and API key. A saved key is not yet a verified connection.</p>
+    <p>You need a Requesty account and API key. A saved key is not yet a verified connection. It is saved only for this profile, not in the shared API Keys list.</p>
     <p x-text="$store.requesty.keyKnown ? ($store.requesty.hasKey ? 'API key: saved' : 'API key: not saved') : 'API key: status unknown'"></p>
     <label for="requesty-key">Requesty API key</label>
     <input id="requesty-key" type="password" autocomplete="off" x-model="$store.requesty.key" :disabled="$store.requesty.busy" placeholder="Paste a new key to save or replace it">
@@ -47,8 +49,8 @@
       </details>
     </fieldset>
     <p class="privacy-error" x-show="config.require_requesty_zdr">Requests are blocked by the Requesty organization ZDR requirement.</p>
-    <p x-text="context.hasUnsavedChanges ? 'Privacy requirements have unsaved changes.' : 'Privacy requirements match the saved settings. This does not confirm an active chat uses this setup.'"></p>
-    <button class="btn" type="button" @click="$store.requesty.saveRequirements(context)" :disabled="$store.requesty.busy || context.isSaving || !context.hasUnsavedChanges">Save privacy requirements</button>
+    <p x-text="!$store.requesty.requirementsSaved ? 'Save to create this profile’s own privacy requirements, even if you keep the defaults.' : context.hasUnsavedChanges ? 'Privacy requirements have unsaved changes.' : 'Privacy requirements match the saved settings. This does not confirm an active chat uses this setup.'"></p>
+    <button class="btn" type="button" @click="$store.requesty.saveRequirements(context)" :disabled="$store.requesty.busy || context.isSaving || (!context.hasUnsavedChanges && $store.requesty.requirementsSaved)">Save privacy requirements</button>
   </section>
   <section class="privacy-card" aria-labelledby="requesty-models-title">
     <h3 id="requesty-models-title">3. Choose your models</h3>
@@ -83,19 +85,21 @@
     <p>The test sends a fixed artificial example, no chats or memory: at most two requests with up to 256 output tokens each. Small API charges may apply.</p>
     <button class="btn" type="button" @click="$store.requesty.testModels(config, context.hasUnsavedChanges)" :disabled="$store.requesty.busy || context.hasUnsavedChanges || !$store.requesty.catalogCurrent(config) || !$store.requesty.main || !$store.requesty.utility">Run example model test</button>
     <p x-show="$store.requesty.testCurrent(config)">Model test passed for this selection. It expires after 10 minutes and does not independently verify provider privacy claims.</p>
-    <label for="requesty-preset">Name for the model setup (preset)</label>
+    <label for="requesty-preset">Name for this profile model setup</label>
     <input type="text" id="requesty-preset" x-model="$store.requesty.presetName" :disabled="$store.requesty.busy" maxlength="80">
     <button class="btn" type="button" @click="$store.requesty.createPreset(config, context.hasUnsavedChanges)" :disabled="$store.requesty.busy || context.hasUnsavedChanges || !$store.requesty.catalogCurrent(config) || !$store.requesty.testCurrent(config) || !$store.requesty.presetName.trim()">Create model setup</button>
-    <p>Creating a setup does not activate it. After creation, select the named preset under Models in a separate test chat.</p>
-    <p class="privacy-note" x-show="$store.requesty.createdPreset" x-text="'Created: ' + $store.requesty.createdPreset + '. Next: select it in a test chat. Activation is not checked here.'"></p>
+    <p>Creating a setup does not activate it. Activation applies to all chats using this selected profile. It overrides Main and Utility while active; deactivate to return to native model settings.</p>
+    <p class="privacy-note" x-show="$store.requesty.createdPreset" x-text="'Created: ' + $store.requesty.createdPreset + ($store.requesty.active ? '. Active for this profile.' : '. Created, not activated.')"></p>
+    <button class="btn" type="button" @click="$store.requesty.activate()" :disabled="$store.requesty.busy || !$store.requesty.createdPreset || $store.requesty.active">Activate for this profile</button>
   </section>
   <details class="privacy-card"><summary>Advanced: memory, images and recovery</summary>
     <p>When Requesty is the helper model, automatic memory updates append entries without consolidating or replacing existing entries. Recall remains available. Manual changes retain standard Agent Zero behavior.</p>
-    <p>Existing embeddings and memories are preserved. The separate Vision slot is disabled in a newly created preset; native image support depends on the conversation model.</p>
-    <p>Undo removes the latest created preset when recovery can safely preserve newer edits. Check active model selections afterwards.</p>
-    <button class="btn" type="button" @click="$store.requesty.recover()" :disabled="$store.requesty.busy">Undo last preset creation</button>
-    <p>Before disabling or uninstalling the plugin, select another existing preset in affected chats, projects and profiles.</p>
+    <p>Existing memory folders and embeddings are preserved. While active, this profile uses a separate memory folder. Existing memories are not copied into it. Native image support depends on the conversation model; a separate Vision model is blocked while Requesty is active.</p>
+    <p>Deactivation stops this profile override and restores its native model selection. It preserves the setup, key and separate memory folder.</p>
+    <button class="btn" type="button" @click="$store.requesty.recover()" :disabled="$store.requesty.busy">Deactivate profile setup</button>
+    <p>Disabling or uninstalling stops the runtime override; it never rewrites another profile or shared preset.</p>
   </details>
+</fieldset>
 </div>
 </template>
 </div>

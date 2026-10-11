@@ -13,7 +13,8 @@ function setup(api = async () => ({ok:true,models:[model],ticket:'test-ticket',p
         toastFrontendSuccess:()=>{},setInterval:()=>1,clearInterval:()=>{},Date,JSON};
     vm.runInNewContext(source, context);
     const store = context.store;
-    store.hasKey = true; store.keyKnown = true;
+    store.scope = {project_name:"",agent_profile:"agent0"};
+    store.hasKey = true; store.keyKnown = true; store.requirementsSaved = true;
     return {store,calls};
 }
 function deferred() {let resolve; const promise = new Promise(r=>resolve=r); return {promise,resolve};}
@@ -27,7 +28,7 @@ test('requirements and model changes prevent creation until a new test', async()
     store.main=model.id;await store.createPreset(c,true);assert.equal(calls.length,2);
     await store.createPreset(c);assert.equal(calls.length,3);
     assert.equal(store.createdPreset,'Example');assert.match(store.message,/Not activated/);
-    assert.match(store.nextStep(c),/Select Example/);
+    assert.match(store.nextStep(c),/Activate Example/);
     assert.equal(store.ticket,'');
 });
 test('refresh and key replacement invalidate a previous model test', async()=>{
@@ -53,10 +54,10 @@ test('late catalog or validation response cannot bless changed settings', async(
 test('close and reopen ignore old key status and do not clear a new busy operation', async()=>{
     const old=deferred();const newer=deferred();let n=0;
     const {store}=setup(()=>++n===1?old.promise:newer.promise);
-    const first=store.onOpen();store.cleanup();const second=store.onOpen();
-    old.resolve({keys:{requesty_guarded:{has_key:true}}});await first;
+    const first=store.onOpen({agentProfileKey:"agent0"});store.cleanup();const second=store.onOpen({agentProfileKey:"agent0"});
+    old.resolve({ok:true,has_key:true});await first;
     assert.equal(store.keyKnown,false);assert.equal(store.busy,true);
-    newer.resolve({keys:{}});await second;assert.equal(store.hasKey,false);assert.equal(store.busy,false);store.cleanup();
+    newer.resolve({ok:true,has_key:false});await second;assert.equal(store.hasKey,false);assert.equal(store.busy,false);store.cleanup();
 });
 test('empty catalog, excluded models, search and blocking ZDR remain distinct', async()=>{
     const {store}=setup(async()=>({ok:true,models:[{...model,allowed:false,reasons:['Location unknown']}]}));
@@ -67,10 +68,41 @@ test('empty catalog, excluded models, search and blocking ZDR remain distinct', 
 });
 test('inline save uses native settings API without closing and only acknowledges successful writes',async()=>{
     const {store,calls}=setup();const c=config();
-    const context={settings:c,hasUnsavedChanges:true,projectName:'',agentProfileKey:'',settingsSnapshotJson:'old'};
+    const context={settings:c,hasUnsavedChanges:true,projectName:'',agentProfileKey:'agent0',settingsSnapshotJson:'old'};
     await store.saveRequirements(context);assert.equal(calls[0][0],'plugins');
     assert.equal(calls[0][1].action,'save_config');assert.equal(context.settingsSnapshotJson,JSON.stringify(c));
     assert.equal(context.isSaving,false);assert.match(store.message,/saved/);
     const bad=setup(async()=>({ok:false,error:'Save failed'})).store;context.settingsSnapshotJson='old';
     await bad.saveRequirements(context);assert.equal(context.settingsSnapshotJson,'old');assert.equal(bad.error,'Save failed');
+});
+
+test('scope switching clears credentials and ignores responses from the previous profile', async()=>{
+    const pending=deferred();let n=0;
+    const {store,calls}=setup(()=>++n===1?pending.promise:Promise.resolve({ok:true,has_key:false}));
+    const old=store.onOpen({agentProfileKey:'agent0'});
+    store.key='unsaved-secret';
+    await store.onOpen({agentProfileKey:'developer'});
+    pending.resolve({ok:true,has_key:true,setup:'Alpha',active:true});await old;
+    assert.equal(store.key,'');assert.equal(store.hasKey,false);assert.equal(store.active,false);
+    assert.equal(store.scope.agent_profile,'developer');
+    assert.equal(calls[0][1].agent_profile,'agent0');assert.equal(calls[1][1].agent_profile,'developer');
+    store.cleanup();
+});
+
+test('all setup API calls carry one explicit profile and no global scope can save', async()=>{
+    const {store,calls}=setup();const c=config();await ready(store,c);await store.createPreset(c);
+    store.key='synthetic';await store.saveKey();await store.activate();await store.recover();
+    for(const [endpoint,payload] of calls) {
+        assert.equal(payload.agent_profile,'agent0');assert.equal(payload.project_name,'');
+        assert.ok(endpoint.startsWith('plugins/requesty/'));
+    }
+    const global=setup().store;await global.onOpen({});assert.equal(global.keyKnown,false);
+    assert.match(global.nextStep(c),/Choose one agent profile/);
+});
+
+test('unchanged defaults can be saved as the first explicit profile policy', async()=>{
+    const {store,calls}=setup();store.requirementsSaved=false;
+    const c=config();const context={settings:c,hasUnsavedChanges:false,agentProfileKey:'agent0',projectName:''};
+    await store.saveRequirements(context);
+    assert.equal(calls.length,1);assert.equal(calls[0][0],'plugins');assert.equal(store.requirementsSaved,true);
 });

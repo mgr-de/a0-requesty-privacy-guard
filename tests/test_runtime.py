@@ -13,11 +13,14 @@ MODEL = {"id": "bedrock/test@eu-central-1", "api": "chat", "geolocation": "eu-ce
 
 class RuntimeTests(unittest.TestCase):
     def setUp(self):
-        self.wrapper = models.get_chat_model("openai", MODEL["id"],
+        from usr.plugins.requesty.helpers.wrapper import GuardedRequestyWrapper
+        self.wrapper = GuardedRequestyWrapper(provider="openai", model=MODEL["id"],
             model_config=models.ModelConfig(type=models.ModelType.CHAT, provider="requesty_guarded", name=MODEL["id"]),
             api_base=ENDPOINTS["eu"], api_key="synthetic-key")
-        for target, name, value in ((guard, "settings", Policy()), (plugins, "get_toggle_state", "enabled"),
-                                    (models, "get_api_key_raw", "synthetic-key"),
+        self.wrapper._requesty_scope = ("", "agent0")
+        self.wrapper._requesty_test = True
+        for target, name, value in ((guard, "settings", Policy()), (guard.scope, "enabled", True),
+                                    (guard.scope, "key", "synthetic-key"),
                                     (guard.catalog, "fetch", {MODEL["id"]: MODEL})):
             mock = patch.object(target, name, return_value=value)
             mock.start(); self.addCleanup(mock.stop)
@@ -40,7 +43,7 @@ class RuntimeTests(unittest.TestCase):
         with patch.object(guard.catalog, "fetch", return_value={}):
             with self.assertRaises(PolicyError):
                 guard.guarded_kwargs(self.wrapper, {})
-        with patch.object(plugins, "get_toggle_state", return_value="disabled"):
+        with patch.object(guard.scope, "enabled", return_value=False):
             with self.assertRaises(PolicyError):
                 guard.guarded_kwargs(self.wrapper, {})
 

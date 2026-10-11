@@ -8,19 +8,29 @@ export const store = createStore("requesty", {
     keyKnown: false, catalogPolicy: "", epoch: 0, ticket: "", testState: "",
     error: "", message: "", createdPreset: "", createdState: "", catalogLoaded: false,
     catalogTime: "", testedAt: 0, now: 0, timer: null,
-    async onOpen() {
+    scope: null, active: false, requirementsSaved: false,
+    scopePayload() { return this.scope || {}; },
+    setScope(context) {
+        const next = {project_name:context.projectName || "",agent_profile:context.agentProfileKey || ""};
+        if (JSON.stringify(next) !== JSON.stringify(this.scope)) this.onOpen(context);
+    },
+    async onOpen(context = {}) {
         this.cleanup();
+        this.scope = {project_name:context.projectName || "",agent_profile:context.agentProfileKey || ""};
         this.main = ""; this.utility = ""; this.search = ""; this.showRejected = false;
         this.error = ""; this.message = ""; this.createdPreset = ""; this.createdState = "";
         this.hasKey = false; this.keyKnown = false;
+        if (!this.scope.agent_profile) { this.error = "Choose one agent profile in the toolbar first. No global settings or keys will be changed."; return; }
         this.now = Date.now();
         this.timer = setInterval(() => { this.now = Date.now(); }, 30000);
         const epoch = this.epoch;
         this.busy = true;
         try {
-            const result = await callJsonApi("plugins/_model_config/api_keys", { action: "get" });
+            const result = await callJsonApi("plugins/requesty/key", { action: "get", ...this.scopePayload() });
             if (epoch !== this.epoch) return;
-            this.hasKey = !!result.keys?.requesty_guarded?.has_key;
+            if (!result.ok) throw new Error(result.error || "Could not read profile key status.");
+            this.hasKey = !!result.has_key; this.createdPreset = result.setup || ""; this.active = !!result.active;
+            this.requirementsSaved = !!result.requirements_saved;
             this.keyKnown = true;
         } catch { if (epoch === this.epoch) this.error = "Could not read the saved key status. Reopen settings to retry."; }
         finally { if (epoch === this.epoch) this.busy = false; }
@@ -28,7 +38,7 @@ export const store = createStore("requesty", {
     cleanup() {
         this.epoch++;
         if (this.timer) clearInterval(this.timer);
-        this.timer = null; this.busy = false; this.key = "";
+        this.timer = null; this.busy = false; this.key = ""; this.hasKey = false; this.keyKnown = false; this.active = false; this.requirementsSaved = false;
         this.models = []; this.catalogPolicy = ""; this.catalogLoaded = false;
         this.catalogTime = ""; this.invalidateTest();
     },
@@ -39,7 +49,7 @@ export const store = createStore("requesty", {
     },
     allowed() { return this.models.filter(m => m.allowed); },
     async saveRequirements(context) {
-        if (this.busy || context.isSaving || !context.hasUnsavedChanges) return;
+        if (this.busy || context.isSaving || (!context.hasUnsavedChanges && this.requirementsSaved) || !context.agentProfileKey) return;
         const epoch = this.epoch;
         const snapshot = JSON.stringify(context.settings);
         const project = context.projectName || ""; const profile = context.agentProfileKey || "";
@@ -52,7 +62,8 @@ export const store = createStore("requesty", {
             if (!result.ok) throw new Error(result.error || "Could not save privacy requirements.");
             if (project !== (context.projectName || "") || profile !== (context.agentProfileKey || "")) return;
             context.settingsSnapshotJson = snapshot;
-            this.message = "Privacy requirements saved. Continue by loading the model catalog.";
+            this.requirementsSaved = true;
+            this.message = "Privacy requirements saved for this profile.";
         } catch (e) { if (epoch === this.epoch) this.error = e.message; }
         finally { context.isSaving = false; if (epoch === this.epoch) this.busy = false; }
     },
@@ -62,16 +73,18 @@ export const store = createStore("requesty", {
             && Math.max(this.now, Date.now()) - this.testedAt < 600000;
     },
     nextStep(config, unsaved = false) {
+        if (!this.scope?.agent_profile) return "Choose one agent profile in the settings toolbar first.";
         if (this.busy) return "Working… Please wait.";
+        if (this.active) return "This profile uses its Requesty setup. Other profiles keep their own models and keys.";
         if (config.require_requesty_zdr) return "Requests are blocked: Requesty organization ZDR cannot currently be verified.";
         if (!this.keyKnown) return "Saved key status is unknown. Reopen settings to retry.";
         if (!this.hasKey) return "Save your Requesty API key to start.";
-        if (unsaved) return "Save the privacy requirements before testing or creating a setup.";
+        if (unsaved || !this.requirementsSaved) return "Save the privacy requirements for this profile before testing or creating a setup.";
         if (!this.catalogCurrent(config)) return "Load models for the current privacy requirements.";
         if (!this.allowed().length) return "No models meet these requirements. Inspect the excluded models for reasons.";
         if (!this.main || !this.utility) return "Choose both the conversation model and the helper model.";
         if (this.createdPreset && this.createdState === JSON.stringify([config, this.main, this.utility]))
-            return `Select ${this.createdPreset} under Models in a separate test chat. It has been created, not activated.`;
+            return `Activate ${this.createdPreset} for this profile when ready. It has been created, not activated.`;
         if (!this.testCurrent(config)) return "Run the example model test. Changes or expired tests require a new test.";
         if (!this.presetName.trim()) return "Enter a name for your new model setup.";
         return "Ready to create a model setup. It will not be activated automatically.";
@@ -82,7 +95,7 @@ export const store = createStore("requesty", {
         this.busy = true; this.error = ""; this.message = "";
         this.invalidateTest(); this.models = []; this.catalogPolicy = ""; this.catalogLoaded = false;
         try {
-            const result = await callJsonApi("plugins/_model_config/api_keys", { action: "set", keys: { requesty_guarded: key } });
+            const result = await callJsonApi("plugins/requesty/key", { action: "set", key, ...this.scopePayload() });
             if (epoch !== this.epoch) return;
             if (!result.ok) throw new Error("Could not save API key.");
             this.hasKey = true; this.keyKnown = true; this.key = "";
@@ -96,7 +109,7 @@ export const store = createStore("requesty", {
         this.busy = true; this.error = ""; this.message = "";
         this.models = []; this.catalogPolicy = ""; this.catalogLoaded = false; this.invalidateTest();
         try {
-            const result = await callJsonApi("plugins/requesty/catalog", { config: JSON.parse(snapshot) });
+            const result = await callJsonApi("plugins/requesty/catalog", { config: JSON.parse(snapshot), ...this.scopePayload() });
             if (epoch !== this.epoch || snapshot !== JSON.stringify(config)) return;
             if (!result.ok) throw new Error(result.error || "Could not load the model catalog.");
             this.models = result.models; this.catalogPolicy = snapshot; this.catalogLoaded = true;
@@ -108,10 +121,10 @@ export const store = createStore("requesty", {
         finally { if (epoch === this.epoch) this.busy = false; }
     },
     async createPreset(config, unsaved = false) {
-        if (this.busy || unsaved || !this.catalogCurrent(config) || !this.testCurrent(config) || !this.presetName.trim()) return;
+        if (this.busy || unsaved || !this.requirementsSaved || !this.catalogCurrent(config) || !this.testCurrent(config) || !this.presetName.trim()) return;
         const epoch = this.epoch;
         const payload = { name: this.presetName.trim(), main: this.main, utility: this.utility,
-            config: JSON.parse(JSON.stringify(config)), ticket: this.ticket };
+            config: JSON.parse(JSON.stringify(config)), ticket: this.ticket, ...this.scopePayload() };
         this.busy = true; this.error = ""; this.message = ""; this.invalidateTest();
         try {
             const result = await callJsonApi("plugins/requesty/apply", payload);
@@ -119,18 +132,18 @@ export const store = createStore("requesty", {
             if (!result.ok) throw new Error(result.error || "Could not create the model setup.");
             this.createdPreset = result.preset;
             this.createdState = JSON.stringify([payload.config, payload.main, payload.utility]);
-            this.message = `Created: ${result.preset}. Not activated. Select this preset under Models in a separate test chat.`;
+            this.message = `Created: ${result.preset}. Not activated. Activate it here for the selected profile.`;
             toastFrontendSuccess(this.message, "Requesty");
         } catch (e) { if (epoch === this.epoch) this.error = e.message; }
         finally { if (epoch === this.epoch) this.busy = false; }
     },
     async testModels(config, unsaved = false) {
-        if (this.busy || unsaved || !this.catalogCurrent(config) || !this.main || !this.utility) return;
+        if (this.busy || unsaved || !this.requirementsSaved || !this.catalogCurrent(config) || !this.main || !this.utility) return;
         const snapshot = JSON.stringify([config, this.main, this.utility]); const epoch = this.epoch;
         const [policy, main, utility] = JSON.parse(snapshot);
         this.busy = true; this.error = ""; this.message = ""; this.invalidateTest();
         try {
-            const result = await callJsonApi("plugins/requesty/validate", { main, utility, config: policy });
+            const result = await callJsonApi("plugins/requesty/validate", { main, utility, config: policy, ...this.scopePayload() });
             if (epoch !== this.epoch || snapshot !== JSON.stringify([config, this.main, this.utility])) return;
             if (!result.ok) throw new Error(result.error || "Model test failed.");
             this.ticket = result.ticket; this.testState = snapshot; this.testedAt = Date.now(); this.now = this.testedAt;
@@ -138,15 +151,26 @@ export const store = createStore("requesty", {
         } catch (e) { if (epoch === this.epoch) this.error = e.message; }
         finally { if (epoch === this.epoch) this.busy = false; }
     },
+    async activate() {
+        if (this.busy || !this.createdPreset || !this.scope?.agent_profile) return;
+        const epoch = this.epoch; this.busy = true; this.error = "";
+        try {
+            const result = await callJsonApi("plugins/requesty/activate", {active:true,...this.scopePayload()});
+            if (epoch !== this.epoch) return;
+            if (!result.ok) throw new Error(result.error || "Could not activate profile setup.");
+            this.active = true; this.message = "Requesty setup activated for this profile only.";
+        } catch(e) { if (epoch === this.epoch) this.error = e.message; }
+        finally { if (epoch === this.epoch) this.busy = false; }
+    },
     async recover() {
         if (this.busy) return;
         const epoch = this.epoch;
         this.busy = true; this.error = ""; this.message = ""; this.invalidateTest();
         try {
-            const result = await callJsonApi("plugins/requesty/recover", {});
+            const result = await callJsonApi("plugins/requesty/recover", this.scopePayload());
             if (epoch !== this.epoch) return;
             if (!result.ok) throw new Error(result.error || "Could not undo preset creation.");
-            this.createdPreset = ""; this.createdState = ""; this.message = "Last preset creation undone. Check the active model selection.";
+            this.active = false; this.message = "Profile setup deactivated. Native model settings apply again.";
         } catch (e) { if (epoch === this.epoch) this.error = e.message; }
         finally { if (epoch === this.epoch) this.busy = false; }
     }

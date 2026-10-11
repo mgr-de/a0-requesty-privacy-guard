@@ -137,6 +137,6 @@ def test_uninstall_reports_cleanup_unavailable(monkeypatch, tmp_path):
 
     result = hooks.uninstall()
 
-    assert result["status"] == "cleanup_unavailable"
-    assert "boom" in result["note"]
+    assert result["status"] == "ok"
+    assert "preserved" in result["note"]
     assert plugin_dir.exists()

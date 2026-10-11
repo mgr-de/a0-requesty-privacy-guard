@@ -2,26 +2,39 @@
 from copy import deepcopy
 from usr.plugins.requesty.helpers.policy import Policy, PolicyError, ENDPOINTS
 from usr.plugins.requesty.helpers import catalog
+from usr.plugins.requesty.helpers import scope
 
 
-def settings():
-    from helpers import plugins
-    return Policy.parse(plugins.get_plugin_config("requesty", project_name="", agent_profile="") or {})
+def settings(owner):
+    raw = scope.read(owner, "config.json")
+    if raw is None:
+        raise PolicyError("Save privacy requirements for this agent profile first.")
+    return Policy.parse(raw)
 
 
 def is_requesty(wrapper):
     conf = getattr(wrapper, "a0_model_conf", None)
     if str(getattr(conf, "provider", "")).lower() == "requesty_guarded":
         return True
-    return (getattr(wrapper, "kwargs", {}) or {}).get("api_base", "").rstrip("/") in ENDPOINTS.values()
+    return False
 
 
 def guarded_kwargs(wrapper, overrides):
     import models
     from helpers import plugins
-    if plugins.get_toggle_state("requesty") != "enabled":
+    owner = getattr(wrapper, "_requesty_scope", None)
+    if owner is None:
+        raise PolicyError("Requesty model has no owning profile. Create a profile model setup.")
+    if not scope.enabled(owner):
         raise PolicyError("Requesty is disabled. Select your previous preset in Model Settings.")
-    policy = settings()
+    setup = None
+    if not getattr(wrapper, "_requesty_test", False):
+        setup = scope.read(owner, "setup.json")
+        slot = getattr(wrapper, "_requesty_slot", None)
+        identifier = wrapper.model_name.removeprefix("openai/")
+        if not setup or not setup.get("active") or setup.get("models", {}).get(slot, {}).get("name") != identifier:
+            raise PolicyError("The owning profile setup changed or is inactive. Rebuild the model before requesting.")
+    policy = settings(owner)
     effective = models._merge_litellm_call_kwargs(wrapper.kwargs, overrides)
     # Do not let unvalidated secondary request bodies or transport choices bypass routing.
     forbidden = {"base_url", "model", "messages", "custom_llm_provider", "api_version",
@@ -47,19 +60,20 @@ def guarded_kwargs(wrapper, overrides):
         raise PolicyError("Requesty API base must be a documented Requesty endpoint.")
     # Region is plugin-owned; user slot defaults do not select the effective router.
     effective["api_base"] = policy.endpoint
-    raw = models.get_api_key_raw("requesty_guarded")
-    keys = [item.strip() for item in raw.split(",") if item.strip() and item.strip() not in ("None", "NA")]
-    key = effective.get("api_key") or (keys[0] if len(keys) == 1 else None)
-    if not isinstance(key, str) or key not in keys:
-        raise PolicyError("Requesty requires a current key from Agent Zero API Keys.")
+    raw = scope.key(owner)
+    key = effective.get("api_key") or raw
+    if key != raw:
+        raise PolicyError("Requesty requires the current key of the owning profile.")
     identifier = wrapper.model_name
     if not isinstance(identifier, str) or not identifier.startswith("openai/"):
         raise PolicyError("Requesty must use the OpenAI-compatible transport.")
     identifier = identifier[len("openai/"):]
     available = catalog.fetch(policy.endpoint, key)
     policy.check(available.get(identifier))
-    if settings() != policy or models.get_api_key_raw("requesty_guarded") != raw:
+    if settings(owner) != policy or scope.key(owner) != raw or not scope.enabled(owner):
         raise PolicyError("Requesty configuration changed during validation; retry the request.")
+    if setup is not None and scope.read(owner, "setup.json") != setup:
+        raise PolicyError("The profile setup changed during validation; retry the request.")
     effective["api_key"] = key
     return effective
 
@@ -77,7 +91,20 @@ def guard_function(data):
         data["kwargs"] = {**guarded_kwargs(wrapper, transport_args), **method_args}
 
 
-def wrap_agent_result(data):
+def wrap_agent_result(data, agent=None, slot=None):
+    owner = scope.from_agent(agent) if agent is not None else getattr(data.get("result"), "_requesty_scope", None)
+    setup = scope.read(owner, "setup.json") if owner else None
+    if agent is not None and setup and setup.get("active") and scope.enabled(owner):
+        import models
+        from usr.plugins.requesty.helpers.wrapper import GuardedRequestyWrapper
+        conf = setup["models"][slot]
+        wrapper = GuardedRequestyWrapper(model=conf["name"], provider="openai",
+            model_config=models.ModelConfig(type=models.ModelType.CHAT, **deepcopy(conf)),
+            api_base=settings(owner).endpoint, api_key=scope.key(owner))
+        wrapper._requesty_scope = owner
+        wrapper._requesty_slot = slot
+        data["result"] = wrapper
+        return
     wrapper = data.get("result")
     if not is_requesty(wrapper):
         return
@@ -90,3 +117,6 @@ def wrap_agent_result(data):
         model=identifier, provider=provider,
         model_config=deepcopy(wrapper.a0_model_conf), **deepcopy(wrapper.kwargs),
     )
+    data["result"]._requesty_scope = owner
+    data["result"]._requesty_slot = getattr(wrapper, "_requesty_slot", None)
+    data["result"]._requesty_test = getattr(wrapper, "_requesty_test", False)

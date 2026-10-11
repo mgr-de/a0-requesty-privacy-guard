@@ -21,8 +21,12 @@ class AgentMemoryTests(unittest.IsolatedAsyncioTestCase):
         for slot in ("chat_model", "utility_model"):
             configuration[slot] = {"provider":"requesty_guarded", "name":IDENTIFIER,
                 "api_base":Policy().endpoint, "ctx_length":10000, "kwargs":{"max_tokens":256, "a0_retry_attempts":0}}
+        setup = {"active":True,"models":{"name":"Synthetic",
+            "chat":{"provider":"requesty_guarded","name":IDENTIFIER,"api_base":Policy().endpoint},
+            "utility":{"provider":"requesty_guarded","name":IDENTIFIER,"api_base":Policy().endpoint}}}
         for target, name, value in ((mc, "get_effective_config", configuration), (guard,"settings",Policy()),
-                (models,"get_api_key_raw","synthetic-key"), (guard.catalog,"fetch",{IDENTIFIER:METADATA})):
+                (guard.scope,"key","synthetic-key"), (guard.scope,"enabled",True),
+                (guard.scope,"read",setup), (guard.catalog,"fetch",{IDENTIFIER:METADATA})):
             mocked = patch.object(target,name,return_value=value); mocked.start(); self.addCleanup(mocked.stop)
         self.agent = Agent(0, AgentConfig(mcp_servers="", profile="agent0"))
         self.agent.loop_data = LoopData()
@@ -101,7 +105,7 @@ class AgentMemoryTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(actual["memory_memorize_consolidation"])
         self.assertEqual(actual["memory_memorize_replace_threshold"],0)
         self.assertEqual(self.original_plugin_config("_memory",agent=None),before)
-        with patch.object(mc,"get_utility_model_config",return_value={"provider":"openai"}):
+        with patch.object(guard.scope,"read",return_value=None):
             self.assertEqual(self.original_plugin_config("_memory",self.agent),before)
 
     async def test_direct_consolidator_failure_keeps_old_memory_and_documents_upstream_behavior(self):
