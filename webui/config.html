@@ -1,42 +1,103 @@
 <html>
-<head><title>Requesty</title><script type="module" src="/plugins/requesty/webui/requesty-store.js"></script></head>
+<head>
+  <title>Requesty Privacy Guard</title>
+  <link rel="stylesheet" href="/plugins/requesty/webui/privacy-settings.css">
+  <script type="module" src="/plugins/requesty/webui/requesty-store.js"></script>
+</head>
 <body>
 <div x-data>
-<template x-if="$store.requesty">
-<div x-init="$store.requesty.onOpen()" x-destroy="$store.requesty.cleanup()" style="display:flex;flex-direction:column;gap:1rem">
-  <p>These settings apply to Requesty requests. Existing embeddings and local memories are preserved.</p>
-  <p>Memory protection: When Requesty is the Utility model, automatic memory updates append new entries without consolidating or replacing existing entries. Recall remains available. Manual memory changes continue to use standard Agent Zero functions.</p>
-  <div class="field"><label for="requesty-key">API key <span x-text="$store.requesty.hasKey ? '(saved)' : '(not saved yet)'"></span></label>
-    <input id="requesty-key" type="password" autocomplete="off" x-model="$store.requesty.key" placeholder="Enter a new API key" />
-    <button class="btn btn-field" type="button" @click="$store.requesty.saveKey()" :disabled="$store.requesty.busy || !$store.requesty.key">Save API key</button>
+<template x-if="$store.requesty && config">
+<div class="privacy-settings" x-init="$store.requesty.onOpen()" x-destroy="$store.requesty.cleanup()" :aria-busy="$store.requesty.busy">
+  <h2>Private model setup</h2>
+  <p>Choose where supported Requesty model requests are processed and which provider data rules they must meet.</p>
+  <aside class="privacy-note">
+    <strong>These models run outside your device.</strong>
+    <p>Local embeddings do not prevent conversation or recalled memory text from being sent to a helper model. Local Privacy Guard can replace detected personal details before supported calls; it cannot guarantee complete detection.</p>
+    <p>Provider rules below are checked against Requesty's catalog, not independently audited. They do not delete local chats, memory or logs, or verify Requesty's own retention.</p>
+  </aside>
+  <div class="privacy-status" role="status" aria-live="polite">
+    <strong>Next step</strong>
+    <p x-text="$store.requesty.nextStep(config, context.hasUnsavedChanges)"></p>
+    <p x-show="$store.requesty.message" x-text="$store.requesty.message"></p>
   </div>
-  <div class="field"><label for="requesty-region">Requesty router</label>
-    <select id="requesty-region" x-model="config.region"><option value="eu">EU · Frankfurt</option><option value="us">US</option><option value="ap">AP</option><option value="global">Global</option></select>
-  </div>
-  <label><input type="checkbox" x-model="config.strict_region" /> Restrict model processing to the selected region</label>
-  <label><input type="checkbox" x-model="config.no_retention" /> Require zero data retention by the model provider</label>
-  <label><input type="checkbox" x-model="config.no_training" /> Require no training by the model provider</label>
-  <label><input type="checkbox" x-model="config.require_requesty_zdr" /> Require verified Requesty organization ZDR</label>
-  <p>Requesty ZDR: <strong>cannot be verified through the documented API</strong>. Enabling this requirement currently blocks all requests. Model provider ZDR is checked separately in the model catalog. These settings do not affect Requesty metadata or local chats and memory.</p>
-  <p>Save these settings using the standard Save button before creating a preset. Catalog information comes from the provider and is not independent proof of actual processing.</p>
-  <button class="btn btn-field" type="button" @click="$store.requesty.refresh(config)" :disabled="$store.requesty.busy">Check connection and load models</button>
-  <label for="requesty-search">Search models</label><input type="text" id="requesty-search" x-model="$store.requesty.search" />
-  <label><input type="checkbox" x-model="$store.requesty.showRejected" /> Show excluded models with rejection reasons</label>
-  <div style="overflow:auto;max-height:20rem"><table style="width:100%"><thead><tr><th>Model</th><th>Location</th><th>Policy check</th></tr></thead><tbody>
-    <template x-for="model in $store.requesty.filtered()" :key="model.id"><tr><td x-text="model.id"></td><td x-text="model.geolocation || 'unknown'"></td><td x-text="model.allowed ? 'Meets requirements' : model.reasons.join(' ')"></td></tr></template>
-  </tbody></table></div>
-  <label for="requesty-main">Main model</label><select id="requesty-main" x-model="$store.requesty.main"><option value="">Select a model</option><template x-for="model in $store.requesty.models.filter(m => m.allowed)" :key="model.id"><option :value="model.id" x-text="model.id"></option></template></select>
-  <label for="requesty-utility">Utility model · Memory queries and processing</label><select id="requesty-utility" x-model="$store.requesty.utility"><option value="">Select a model</option><template x-for="model in $store.requesty.models.filter(m => m.allowed)" :key="model.id"><option :value="model.id" x-text="model.id"></option></template></select>
-  <label for="requesty-preset">New preset name</label><input type="text" id="requesty-preset" x-model="$store.requesty.presetName" maxlength="80" />
-  <p>Model tests send only a fixed synthetic JSON task to the selected models: at most two requests with up to 256 output tokens each. Small API charges may apply.</p>
-  <button class="btn btn-field" type="button" @click="$store.requesty.testModels(config)" :disabled="$store.requesty.busy || !$store.requesty.main || !$store.requesty.utility || $store.requesty.catalogPolicy !== JSON.stringify(config)">Test Main and Utility models</button>
-  <button class="btn btn-field" type="button" @click="$store.requesty.createPreset(config)" :disabled="$store.requesty.busy || !$store.requesty.ticket || $store.requesty.testState !== JSON.stringify([config, $store.requesty.main, $store.requesty.utility]) || $store.requesty.catalogPolicy !== JSON.stringify(config)">Create validated preset</button>
-  <p>Creating a preset does not activate a model. The embedding configuration is preserved; the separate Vision slot is disabled in the new preset. Select the preset in a test chat first.</p>
-  <button class="btn btn-field" type="button" @click="$store.requesty.recover()" :disabled="$store.requesty.busy">Undo last preset creation</button>
-  <p>Before disabling or uninstalling this plugin, select another existing preset in all affected chats, projects, and profiles.</p>
+  <p class="privacy-error" role="alert" x-show="$store.requesty.error" x-text="$store.requesty.error"></p>
+  <section class="privacy-card" aria-labelledby="requesty-access-title">
+    <h3 id="requesty-access-title">1. Connect your account</h3>
+    <p>You need a Requesty account and API key. A saved key is not yet a verified connection.</p>
+    <p x-text="$store.requesty.keyKnown ? ($store.requesty.hasKey ? 'API key: saved' : 'API key: not saved') : 'API key: status unknown'"></p>
+    <label for="requesty-key">Requesty API key</label>
+    <input id="requesty-key" type="password" autocomplete="off" x-model="$store.requesty.key" :disabled="$store.requesty.busy" placeholder="Paste a new key to save or replace it">
+    <button class="btn" type="button" @click="$store.requesty.saveKey()" :disabled="$store.requesty.busy || !$store.requesty.key.trim()">Save API key</button>
+  </section>
+  <section class="privacy-card" aria-labelledby="requesty-policy-title">
+    <h3 id="requesty-policy-title">2. Set privacy requirements</h3>
+    <fieldset :disabled="$store.requesty.busy">
+      <legend>Routing and provider rules</legend>
+      <label for="requesty-region">Gateway region</label>
+      <select id="requesty-region" x-model="config.region" @change="$store.requesty.invalidateTest()">
+        <option value="eu">European Union · Frankfurt</option><option value="us">United States</option><option value="ap">Asia-Pacific</option><option value="global">Global</option>
+      </select>
+      <p class="privacy-help">The gateway location and the model's processing location are separate. Use the next requirement to restrict model processing too.</p>
+      <label class="privacy-choice"><input type="checkbox" x-model="config.strict_region" @change="$store.requesty.invalidateTest()"> <span>Require model processing in the selected region</span></label>
+      <label class="privacy-choice"><input type="checkbox" x-model="config.no_retention" @change="$store.requesty.invalidateTest()"> <span>Require the model provider to retain no request data</span></label>
+      <label class="privacy-choice"><input type="checkbox" x-model="config.no_training" @change="$store.requesty.invalidateTest()"> <span>Require the model provider not to use request data for training</span></label>
+      <details><summary>Advanced: Requesty organization retention</summary>
+        <p>Requesty's own zero data retention (ZDR) cannot currently be verified through the documented API. Requiring verification currently blocks all requests.</p>
+        <label class="privacy-choice"><input type="checkbox" x-model="config.require_requesty_zdr" @change="$store.requesty.invalidateTest()"> <span>Block requests unless Requesty organization ZDR is verified</span></label>
+      </details>
+    </fieldset>
+    <p class="privacy-error" x-show="config.require_requesty_zdr">Requests are blocked by the Requesty organization ZDR requirement.</p>
+    <p x-text="context.hasUnsavedChanges ? 'Privacy requirements have unsaved changes.' : 'Privacy requirements match the saved settings. This does not confirm an active chat uses this setup.'"></p>
+    <button class="btn" type="button" @click="$store.requesty.saveRequirements(context)" :disabled="$store.requesty.busy || context.isSaving || !context.hasUnsavedChanges">Save privacy requirements</button>
+  </section>
+  <section class="privacy-card" aria-labelledby="requesty-models-title">
+    <h3 id="requesty-models-title">3. Choose your models</h3>
+    <button class="btn" type="button" @click="$store.requesty.refresh(config)" :disabled="$store.requesty.busy || !$store.requesty.hasKey || context.hasUnsavedChanges">Check connection and load models</button>
+    <p class="privacy-help">Save a key and the privacy requirements first. Only models that meet the requirements can be selected.</p>
+    <p x-show="!$store.requesty.catalogLoaded">No model catalog loaded for these settings yet.</p>
+    <p class="privacy-note" x-show="$store.requesty.catalogLoaded && !$store.requesty.catalogCurrent(config)">Requirements changed. Reload the catalog before testing.</p>
+    <p x-show="$store.requesty.catalogLoaded" x-text="'Catalog loaded: ' + $store.requesty.catalogTime + '. Source: Requesty authenticated catalog. Runtime checks refresh metadata separately.'"></p>
+    <p class="privacy-note" x-show="$store.requesty.catalogLoaded && !$store.requesty.allowed().length">No models meet the selected requirements. Open the model details below to inspect rejection reasons. Requirements are not relaxed automatically.</p>
+    <fieldset :disabled="$store.requesty.busy || !$store.requesty.catalogCurrent(config) || context.hasUnsavedChanges">
+      <legend>Model roles</legend>
+      <label for="requesty-main">Conversation model (Main)</label>
+      <p id="requesty-main-help" class="privacy-help">Handles your conversation and tasks.</p>
+      <select id="requesty-main" aria-describedby="requesty-main-help" x-model="$store.requesty.main" @change="$store.requesty.invalidateTest()"><option value="">Choose a conversation model</option><template x-for="model in $store.requesty.allowed()" :key="model.id"><option :value="model.id" x-text="model.id"></option></template></select>
+      <label for="requesty-utility">Helper model (Utility)</label>
+      <p id="requesty-utility-help" class="privacy-help">Handles background tasks and memory processing. It may receive conversation or recalled memory text.</p>
+      <select id="requesty-utility" aria-describedby="requesty-utility-help" x-model="$store.requesty.utility" @change="$store.requesty.invalidateTest()"><option value="">Choose a helper model</option><template x-for="model in $store.requesty.allowed()" :key="model.id"><option :value="model.id" x-text="model.id"></option></template></select>
+    </fieldset>
+    <details><summary>Browse catalog and exclusion reasons</summary>
+      <label for="requesty-search">Search model names</label><input type="search" id="requesty-search" x-model="$store.requesty.search">
+      <label class="privacy-choice"><input type="checkbox" x-model="$store.requesty.showRejected"> <span>Include excluded models</span></label>
+      <p x-show="$store.requesty.catalogLoaded && !$store.requesty.filtered().length">No results in this view. Clear the search or include excluded models to see more.</p>
+      <div class="privacy-table-scroll" tabindex="0" aria-label="Model catalog, scroll horizontally if needed">
+        <table><caption>Model requirements according to the catalog</caption><thead><tr><th scope="col">Model</th><th scope="col">Processing location</th><th scope="col">Requirement check</th><th scope="col">Capabilities</th></tr></thead><tbody>
+          <template x-for="model in $store.requesty.filtered()" :key="model.id"><tr><th scope="row" x-text="model.id"></th><td x-text="model.geolocation || 'Unknown'"></td><td x-text="model.allowed ? 'Meets selected requirements' : model.reasons.join(' ')"></td><td x-text="'Tools: ' + (model.supports_tool_calling === true ? 'yes' : model.supports_tool_calling === false ? 'no' : 'unknown') + ' · Images: ' + (model.supports_vision === true ? 'yes' : model.supports_vision === false ? 'no' : 'unknown')"></td></tr></template>
+        </tbody></table>
+      </div>
+    </details>
+  </section>
+  <section class="privacy-card" aria-labelledby="requesty-test-title">
+    <h3 id="requesty-test-title">4. Test and create your setup</h3>
+    <p>The test sends a fixed artificial example, no chats or memory: at most two requests with up to 256 output tokens each. Small API charges may apply.</p>
+    <button class="btn" type="button" @click="$store.requesty.testModels(config, context.hasUnsavedChanges)" :disabled="$store.requesty.busy || context.hasUnsavedChanges || !$store.requesty.catalogCurrent(config) || !$store.requesty.main || !$store.requesty.utility">Run example model test</button>
+    <p x-show="$store.requesty.testCurrent(config)">Model test passed for this selection. It expires after 10 minutes and does not independently verify provider privacy claims.</p>
+    <label for="requesty-preset">Name for the model setup (preset)</label>
+    <input type="text" id="requesty-preset" x-model="$store.requesty.presetName" :disabled="$store.requesty.busy" maxlength="80">
+    <button class="btn" type="button" @click="$store.requesty.createPreset(config, context.hasUnsavedChanges)" :disabled="$store.requesty.busy || context.hasUnsavedChanges || !$store.requesty.catalogCurrent(config) || !$store.requesty.testCurrent(config) || !$store.requesty.presetName.trim()">Create model setup</button>
+    <p>Creating a setup does not activate it. After creation, select the named preset under Models in a separate test chat.</p>
+    <p class="privacy-note" x-show="$store.requesty.createdPreset" x-text="'Created: ' + $store.requesty.createdPreset + '. Next: select it in a test chat. Activation is not checked here.'"></p>
+  </section>
+  <details class="privacy-card"><summary>Advanced: memory, images and recovery</summary>
+    <p>When Requesty is the helper model, automatic memory updates append entries without consolidating or replacing existing entries. Recall remains available. Manual changes retain standard Agent Zero behavior.</p>
+    <p>Existing embeddings and memories are preserved. The separate Vision slot is disabled in a newly created preset; native image support depends on the conversation model.</p>
+    <p>Undo removes the latest created preset when recovery can safely preserve newer edits. Check active model selections afterwards.</p>
+    <button class="btn" type="button" @click="$store.requesty.recover()" :disabled="$store.requesty.busy">Undo last preset creation</button>
+    <p>Before disabling or uninstalling the plugin, select another existing preset in affected chats, projects and profiles.</p>
+  </details>
 </div>
 </template>
 </div>
 </body>
 </html>
-

@@ -4,11 +4,11 @@
 [![Agent Zero Plugin](https://img.shields.io/badge/Agent%20Zero-Plugin-blue)](https://github.com/agent0ai/agent-zero)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Version 0.1.2, tested on Agent Zero v2.13 in an isolated Docker instance. Test your own model choices before production use.
+Version 0.2.0. The settings redesign was checked against Agent Zero v2.13 in an isolated Docker instance. Test your own model choices before production use.
 
 ## Related plugin
 
-This plugin pairs with [Local Privacy Guard](https://github.com/mgr-de/a0-local-privacy-guard), from the same authors. Requesty Privacy Guard controls **where** your model traffic is routed (EU router, provider ZDR, no training); Local Privacy Guard anonymizes **what** is sent (PII filtering before every LLM call) and keeps memory embeddings fully local. Use both together for end-to-end data protection.
+This plugin pairs with [Local Privacy Guard](https://github.com/mgr-de/a0-local-privacy-guard). Requesty checks selected routing and provider data requirements against catalog metadata. Local Privacy Guard replaces detected personal details on supported model calls and configures local embeddings. Detection can miss details, and neither plugin independently audits provider practices or covers every external data path.
 
 0.1.1 fixes Agent Zero 2.13's chat model gate checking global credentials instead of a per-chat preset. A native JSON API extension attaches the current/pending chat context to the empty model-status request. Explicit scopes and global preset editor requests are preserved; backend key checks and all Requesty runtime privacy guards remain active.
 
@@ -16,12 +16,16 @@ This plugin pairs with [Local Privacy Guard](https://github.com/mgr-de/a0-local-
 
 1. Install the ZIP through Settings → Plugins → Install → From ZIP.
 2. Open Requesty → Config. Save a separate Requesty test key. The key is stored by Agent Zero's API-key manager as `API_KEY_REQUESTY_GUARDED`, outside presets and plugin configuration.
-3. Choose the router region, model-region restriction, provider zero retention and exclusion of training. Save through the normal plugin Settings button.
+3. Choose the gateway region, model-region restriction, provider zero retention and exclusion of training. **Save privacy requirements** uses the native settings API while keeping the setup page open. The standard Save button also works but closes the dialog.
 4. Load the authenticated model catalog. Rejected models have explicit reasons; unknown metadata cannot satisfy a mandatory restriction.
-5. Select Main and Utility models. Run the synthetic model tests. They send a fixed artificial prompt, no chats or Memory, with at most two requests of 256 output tokens each. API costs may apply.
+5. Select Conversation (Main) and Helper (Utility) models. Run the example model test. It sends a fixed artificial prompt, no chats or Memory, with at most two requests of 256 output tokens each. API costs may apply.
 6. Create a separate named preset. It is not activated automatically. Test it in a separate chat before selecting it globally.
 
 The initial policy is EU router, EU model processing, no provider retention and no provider training. The supported region mapping is deliberately limited; unfamiliar provider location values are rejected until verified.
+
+The page shows the next required step, unsaved settings, catalog loading time, exclusion reasons, persistent errors and creation results. Saved credentials are distinct from a checked connection; a successful synthetic test is not a privacy audit; a created preset is not activated. Changes to settings, credentials or models invalidate tests. Results from requests that finish after the dialog closes are ignored. No requirement is automatically relaxed when the catalog is empty.
+
+Technical retention, memory, image and recovery controls are available in expandable sections. A required but unverified Requesty organization ZDR setting remains visibly blocking even when its section is closed. See [the UI review](docs/UI-REVIEW.md) and [test strategy](docs/TESTSTRATEGY.md).
 
 ## ZDR has three distinct scopes
 

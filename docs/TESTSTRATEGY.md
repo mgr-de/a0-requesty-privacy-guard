@@ -54,6 +54,14 @@ cd /path/to/repo && python -m pytest tests/ -q
 4. With a `recovery.json` present, uninstall → journal gone, no error.
 5. Re-install → plugin works, no stale recovery state replayed.
 
+## Settings redesign 0.2.0
+
+Run `node --test tests/test_requesty_store.mjs tests/test_model_gate_context.mjs`. New tests cover changed policies/models, credential replacement, test expiry, failed saves, catalog failures, excluded/search states and late results after closing/reopening. Inline requirement saving uses the native settings API and acknowledges only successful writes without closing the dialog.
+
+The full Python suite was run against the real Agent Zero v2.13 framework in a fresh isolated container. Browser integration checks cover both settings dialogs and native requirement saving. A separate UI fixture with simulated external responses exercises catalog, selection, test, preset creation, empty and error states without costs or real credentials. It does not prove live model compatibility or provider data practices.
+
+At a 390px viewport width and equivalent 200% zoom, verify control reachability, wrapped text and keyboard focus. After preset creation the next step must name the created preset for selection in a separate test chat, rather than suggesting it is already active.
+
 ## Known limitations
 
 - The framework-dependent test files (`test_catalog.py`, `test_configuration.py`,
