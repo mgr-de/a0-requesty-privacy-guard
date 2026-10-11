@@ -70,6 +70,43 @@ class ProfileIsolationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(plugins.get_plugin_config("_memory",self.beta),original)
         self.assertNotEqual(memory.get_agent_memory_subdir(self.alpha),memory.get_agent_memory_subdir(self.beta))
 
+    async def test_active_setup_suspends_raw_and_named_chat_overrides_without_destroying_them(self):
+        native_alpha=deepcopy(mc.get_effective_config(self.alpha))
+        self.write_setup(self.a)
+        native_embedding=deepcopy(mc.get_config(self.alpha).get("embedding_model"))
+        native_beta=deepcopy(mc.get_effective_config(self.beta))
+        for override in ({"preset_name":mc.DEFAULT_PRESET_NAME},
+                         {"chat":{"provider":"openrouter","name":"other/model"},
+                          "vision":{"provider":"openrouter","name":"other/vision"},
+                          "embedding":{"provider":"openai","name":"other/embedding"}}):
+            with self.subTest(override=override):
+                self.alpha.context.set_data("chat_model_override",deepcopy(override))
+                effective=mc.get_effective_config(self.alpha)
+                self.assertEqual(effective["vision_model"],{})
+                self.assertEqual(effective.get("embedding_model"),native_embedding)
+                from usr.plugins.requesty.helpers.chat_override import backup_key
+                self.assertIsNone(self.alpha.context.get_data("chat_model_override"))
+                self.assertEqual(self.alpha.context.get_data(backup_key(self.a)),override)
+                self.assertEqual(self.alpha.get_chat_model()._requesty_scope,self.a)
+                self.assertEqual(self.alpha.get_utility_model()._requesty_scope,self.a)
+                self.assertEqual(mc.get_effective_config(self.beta),native_beta)
+        self.alpha.context.set_data("chat_model_override",None)
+        with patch.object(configuration,"fetch",return_value={IDENTIFIER:METADATA}):
+            configuration.recover(self.a)
+        self.assertEqual(self.alpha.context.get_data("chat_model_override"),override)
+        self.alpha.context.set_data("chat_model_override",None)
+        self.assertEqual(mc.get_effective_config(self.alpha),native_alpha)
+
+    async def test_model_status_with_existing_chat_override_is_accessible(self):
+        from usr.plugins.requesty.api.model_status import ModelStatus
+        import threading
+        self.write_setup(self.a)
+        self.alpha.context.set_data("chat_model_override",{"preset_name":mc.DEFAULT_PRESET_NAME})
+        result=await ModelStatus(None,threading.RLock()).process({"context_id":self.alpha.context.id},None)
+        self.assertTrue(result["model_configured"])
+        self.assertEqual(result["config"]["vision_model"],{})
+        self.assertEqual(result["config"]["chat_model"]["name"],IDENTIFIER)
+
     async def test_ticket_cannot_cross_profile_even_with_same_models_and_state(self):
         validation._tickets.clear()
         import time
@@ -144,6 +181,10 @@ class ProfileIsolationTests(unittest.IsolatedAsyncioTestCase):
         status=await api.process({"agent_profile":"agent0"},None)
         self.assertTrue(status["has_key"]);self.assertTrue(status["requirements_saved"])
         self.assertNotIn("synthetic-alpha",json.dumps(status))
+        self.write_setup(self.a)
+        status=await api.process({"agent_profile":"agent0"},None)
+        self.assertEqual(status["main"],IDENTIFIER)
+        self.assertEqual(status["utility"],IDENTIFIER)
         other_before=scope.path(self.b,"credentials.json").read_bytes()
         result=await api.process({"action":"set","agent_profile":"agent0","key":"synthetic-new"},None)
         self.assertTrue(result["ok"]);self.assertEqual(scope.key(self.a),"synthetic-new")

@@ -1,7 +1,9 @@
 <p align="center"><img src="assets/icon.svg" alt="Requesty Privacy Guard" width="128" height="128"></p>
 # Requesty for Agent Zero 2.13
 
-Version 0.3.0. Privacy policy, credentials and model setup now belong to an explicit agent profile, optionally within a project. Shared model presets and global API keys are never written by setup or deactivation.
+Version 0.3.1. Privacy policy, credentials and model setup belong to an explicit agent profile, optionally within a project. Shared model presets and global API keys are never written by setup or deactivation.
+
+An active profile setup temporarily suspends an existing chat model selection, preserving it in that chat's context data. Deactivation restores it unless a newer native selection already exists. This prevents an old chat preset from blocking memory initialization or bringing back an unguarded Vision sidecar. Reopening settings restores the saved setup name and model choices; replacing an active setup requires activating the newly tested replacement.
 
 ## Configure one profile
 

@@ -8,7 +8,7 @@ export const store = createStore("requesty", {
     keyKnown: false, catalogPolicy: "", epoch: 0, ticket: "", testState: "",
     error: "", message: "", createdPreset: "", createdState: "", catalogLoaded: false,
     catalogTime: "", testedAt: 0, now: 0, timer: null,
-    scope: null, active: false, requirementsSaved: false,
+    scope: null, active: false, requirementsSaved: false, savedMain: "", savedUtility: "",
     scopePayload() { return this.scope || {}; },
     setScope(context) {
         const next = {project_name:context.projectName || "",agent_profile:context.agentProfileKey || ""};
@@ -30,6 +30,9 @@ export const store = createStore("requesty", {
             if (epoch !== this.epoch) return;
             if (!result.ok) throw new Error(result.error || "Could not read profile key status.");
             this.hasKey = !!result.has_key; this.createdPreset = result.setup || ""; this.active = !!result.active;
+            this.savedMain = result.main || ""; this.savedUtility = result.utility || "";
+            this.main = this.savedMain; this.utility = this.savedUtility;
+            this.presetName = this.createdPreset || "Requesty Private";
             this.requirementsSaved = !!result.requirements_saved;
             this.keyKnown = true;
         } catch { if (epoch === this.epoch) this.error = "Could not read the saved key status. Reopen settings to retry."; }
@@ -40,6 +43,7 @@ export const store = createStore("requesty", {
         if (this.timer) clearInterval(this.timer);
         this.timer = null; this.busy = false; this.key = ""; this.hasKey = false; this.keyKnown = false; this.active = false; this.requirementsSaved = false;
         this.models = []; this.catalogPolicy = ""; this.catalogLoaded = false;
+        this.savedMain = ""; this.savedUtility = "";
         this.catalogTime = ""; this.invalidateTest();
     },
     invalidateTest() { this.ticket = ""; this.testState = ""; this.testedAt = 0; },
@@ -131,6 +135,8 @@ export const store = createStore("requesty", {
             if (epoch !== this.epoch) return;
             if (!result.ok) throw new Error(result.error || "Could not create the model setup.");
             this.createdPreset = result.preset;
+            this.active = !!result.activated;
+            this.savedMain = payload.main; this.savedUtility = payload.utility;
             this.createdState = JSON.stringify([payload.config, payload.main, payload.utility]);
             this.message = `Created: ${result.preset}. Not activated. Activate it here for the selected profile.`;
             toastFrontendSuccess(this.message, "Requesty");

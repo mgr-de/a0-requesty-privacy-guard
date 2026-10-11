@@ -84,6 +84,9 @@ def activate(owner, active):
                 raise PolicyError("Profile configuration changed during activation; retry.")
         setup["active"] = active
         atomic_write(scope.path(owner, "setup.json"), json.dumps(setup))
+        if not active:
+            from usr.plugins.requesty.helpers.chat_override import restore_profile_chats
+            restore_profile_chats(owner)
         return {"activated": active}
 
 def recover(owner):

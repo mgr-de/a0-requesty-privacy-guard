@@ -18,6 +18,16 @@ function setup(api = async () => ({ok:true,models:[model],ticket:'test-ticket',p
     return {store,calls};
 }
 function deferred() {let resolve; const promise = new Promise(r=>resolve=r); return {promise,resolve};}
+test('reopening restores saved model selections and profile setup name', async()=>{
+    const {store}=setup(async()=>({ok:true,has_key:true,requirements_saved:true,setup:'Saved setup',
+        main:'saved/main',utility:'saved/utility',active:true}));
+    await store.onOpen({agentProfileKey:'agent0'});
+    assert.equal(store.main,'saved/main');assert.equal(store.utility,'saved/utility');
+    assert.equal(store.savedMain,'saved/main');assert.equal(store.savedUtility,'saved/utility');
+    assert.equal(store.presetName,'Saved setup');assert.equal(store.active,true);
+    assert.equal(store.ticket,'');assert.equal(store.catalogLoaded,false);
+    store.cleanup();assert.equal(store.savedMain,'');assert.equal(store.savedUtility,'');
+});
 async function ready(store,c) {await store.refresh(c);store.main=model.id;store.utility=model.id;await store.testModels(c);}
 
 test('requirements and model changes prevent creation until a new test', async()=>{
@@ -74,6 +84,12 @@ test('inline save uses native settings API without closing and only acknowledges
     assert.equal(context.isSaving,false);assert.match(store.message,/saved/);
     const bad=setup(async()=>({ok:false,error:'Save failed'})).store;context.settingsSnapshotJson='old';
     await bad.saveRequirements(context);assert.equal(context.settingsSnapshotJson,'old');assert.equal(bad.error,'Save failed');
+});
+test('replacing an active setup makes the new setup inactive and activatable', async()=>{
+    const {store}=setup();const c=config();await ready(store,c);store.active=true;
+    await store.createPreset(c);
+    assert.equal(store.active,false);assert.equal(store.savedMain,model.id);
+    assert.equal(store.savedUtility,model.id);assert.match(store.nextStep(c),/Activate Example/);
 });
 
 test('scope switching clears credentials and ignores responses from the previous profile', async()=>{
