@@ -8,7 +8,7 @@
 <div x-data>
 <template x-if="$store.requesty && config">
 <div class="privacy-settings" x-init="$store.requesty.onOpen(context)" x-destroy="$store.requesty.cleanup()" x-effect="$store.requesty.setScope(context)" :aria-busy="$store.requesty.busy">
-  <h2>Private model setup</h2>
+  <h2 class="section-title">Private model setup</h2>
   <aside class="privacy-note"><strong>One agent profile at a time.</strong><p>Choose an Agent profile in the toolbar. Keys, privacy rules, model setup and memory storage belong to this selected profile. Global presets and keys are never changed.</p><p x-text="context.agentProfileKey ? 'Selected profile: ' + context.agentProfileKey : 'No profile selected — setup actions are unavailable.'"></p></aside>
   <fieldset :disabled="!context.agentProfileKey"><legend>Profile setup</legend>
   <p>Choose where supported Requesty model requests are processed and which provider data rules they must meet.</p>
@@ -24,28 +24,26 @@
   </div>
   <p class="privacy-error" role="alert" x-show="$store.requesty.error" x-text="$store.requesty.error"></p>
   <section class="privacy-card" aria-labelledby="requesty-access-title">
-    <h3 id="requesty-access-title">1. Connect your account</h3>
+    <h3 id="requesty-access-title" class="section-title">1. Connect your account</h3>
     <p>You need a Requesty account and API key. A saved key is not yet a verified connection. It is saved only for this profile, not in the shared API Keys list.</p>
     <p x-text="$store.requesty.keyKnown ? ($store.requesty.hasKey ? 'API key: saved' : 'API key: not saved') : 'API key: status unknown'"></p>
-    <label for="requesty-key">Requesty API key</label>
-    <input id="requesty-key" type="password" autocomplete="off" x-model="$store.requesty.key" :disabled="$store.requesty.busy" placeholder="Paste a new key to save or replace it">
+    <div class="field"><div class="field-label"><label class="field-title" for="requesty-key">Requesty API key</label></div><div class="field-control"><input id="requesty-key" type="password" autocomplete="off" x-model="$store.requesty.key" :disabled="$store.requesty.busy" placeholder="Paste a new key to save or replace it"></div></div>
     <button class="btn" type="button" @click="$store.requesty.saveKey()" :disabled="$store.requesty.busy || !$store.requesty.key.trim()">Save API key</button>
   </section>
   <section class="privacy-card" aria-labelledby="requesty-policy-title">
-    <h3 id="requesty-policy-title">2. Set privacy requirements</h3>
+    <h3 id="requesty-policy-title" class="section-title">2. Set privacy requirements</h3>
     <fieldset :disabled="$store.requesty.busy">
       <legend>Routing and provider rules</legend>
-      <label for="requesty-region">Gateway region</label>
-      <select id="requesty-region" x-model="config.region" @change="$store.requesty.invalidateTest()">
+      <div class="field"><div class="field-label"><label class="field-title" for="requesty-region">Gateway region</label></div><div class="field-control"><select id="requesty-region" x-model="config.region" @change="$store.requesty.invalidateTest()">
         <option value="eu">European Union · Frankfurt</option><option value="us">United States</option><option value="ap">Asia-Pacific</option><option value="global">Global</option>
-      </select>
-      <p class="privacy-help">The gateway location and the model's processing location are separate. Use the next requirement to restrict model processing too.</p>
-      <label class="privacy-choice"><input type="checkbox" x-model="config.strict_region" @change="$store.requesty.invalidateTest()"> <span>Require model processing in the selected region</span></label>
-      <label class="privacy-choice"><input type="checkbox" x-model="config.no_retention" @change="$store.requesty.invalidateTest()"> <span>Require the model provider to retain no request data</span></label>
-      <label class="privacy-choice"><input type="checkbox" x-model="config.no_training" @change="$store.requesty.invalidateTest()"> <span>Require the model provider not to use request data for training</span></label>
+      </select></div></div>
+      <p class="field-description privacy-help">The gateway location and the model's processing location are separate. Use the next requirement to restrict model processing too.</p>
+      <div class="field"><div class="field-label"><label class="field-title" for="requesty-switch-1">Require model processing in the selected region</label></div><div class="field-control"><label class="toggle"><input type="checkbox" x-model="config.strict_region" @change="$store.requesty.invalidateTest()" id="requesty-switch-1"><span class="toggler" aria-hidden="true"></span></label></div></div>
+      <div class="field"><div class="field-label"><label class="field-title" for="requesty-switch-2">Require the model provider to retain no request data</label></div><div class="field-control"><label class="toggle"><input type="checkbox" x-model="config.no_retention" @change="$store.requesty.invalidateTest()" id="requesty-switch-2"><span class="toggler" aria-hidden="true"></span></label></div></div>
+      <div class="field"><div class="field-label"><label class="field-title" for="requesty-switch-3">Require the model provider not to use request data for training</label></div><div class="field-control"><label class="toggle"><input type="checkbox" x-model="config.no_training" @change="$store.requesty.invalidateTest()" id="requesty-switch-3"><span class="toggler" aria-hidden="true"></span></label></div></div>
       <details><summary>Advanced: Requesty organization retention</summary>
         <p>Requesty's own zero data retention (ZDR) cannot currently be verified through the documented API. Requiring verification currently blocks all requests.</p>
-        <label class="privacy-choice"><input type="checkbox" x-model="config.require_requesty_zdr" @change="$store.requesty.invalidateTest()"> <span>Block requests unless Requesty organization ZDR is verified</span></label>
+        <div class="field"><div class="field-label"><label class="field-title" for="requesty-switch-4">Block requests unless Requesty organization ZDR is verified</label></div><div class="field-control"><label class="toggle"><input type="checkbox" x-model="config.require_requesty_zdr" @change="$store.requesty.invalidateTest()" id="requesty-switch-4"><span class="toggler" aria-hidden="true"></span></label></div></div>
       </details>
     </fieldset>
     <p class="privacy-error" x-show="config.require_requesty_zdr">Requests are blocked by the Requesty organization ZDR requirement.</p>
@@ -53,25 +51,23 @@
     <button class="btn" type="button" @click="$store.requesty.saveRequirements(context)" :disabled="$store.requesty.busy || context.isSaving || (!context.hasUnsavedChanges && $store.requesty.requirementsSaved)">Save privacy requirements</button>
   </section>
   <section class="privacy-card" aria-labelledby="requesty-models-title">
-    <h3 id="requesty-models-title">3. Choose your models</h3>
+    <h3 id="requesty-models-title" class="section-title">3. Choose your models</h3>
     <button class="btn" type="button" @click="$store.requesty.refresh(config)" :disabled="$store.requesty.busy || !$store.requesty.hasKey || context.hasUnsavedChanges">Check connection and load models</button>
-    <p class="privacy-help">Save a key and the privacy requirements first. Only models that meet the requirements can be selected.</p>
+    <p class="field-description privacy-help">Save a key and the privacy requirements first. Only models that meet the requirements can be selected.</p>
     <p x-show="!$store.requesty.catalogLoaded">No model catalog loaded for these settings yet.</p>
     <p class="privacy-note" x-show="$store.requesty.catalogLoaded && !$store.requesty.catalogCurrent(config)">Requirements changed. Reload the catalog before testing.</p>
     <p x-show="$store.requesty.catalogLoaded" x-text="'Catalog loaded: ' + $store.requesty.catalogTime + '. Source: Requesty authenticated catalog. Runtime checks refresh metadata separately.'"></p>
     <p class="privacy-note" x-show="$store.requesty.catalogLoaded && !$store.requesty.allowed().length">No models meet the selected requirements. Open the model details below to inspect rejection reasons. Requirements are not relaxed automatically.</p>
     <fieldset :disabled="$store.requesty.busy || !$store.requesty.catalogCurrent(config) || context.hasUnsavedChanges">
       <legend>Model roles</legend>
-      <label for="requesty-main">Conversation model (Main)</label>
-      <p id="requesty-main-help" class="privacy-help">Handles your conversation and tasks.</p>
-      <select id="requesty-main" aria-describedby="requesty-main-help" x-model="$store.requesty.main" @change="$store.requesty.invalidateTest()"><option value="">Choose a conversation model</option><template x-for="model in $store.requesty.allowed()" :key="model.id"><option :value="model.id" x-text="model.id"></option></template></select>
-      <label for="requesty-utility">Helper model (Utility)</label>
-      <p id="requesty-utility-help" class="privacy-help">Handles background tasks and memory processing. It may receive conversation or recalled memory text.</p>
-      <select id="requesty-utility" aria-describedby="requesty-utility-help" x-model="$store.requesty.utility" @change="$store.requesty.invalidateTest()"><option value="">Choose a helper model</option><template x-for="model in $store.requesty.allowed()" :key="model.id"><option :value="model.id" x-text="model.id"></option></template></select>
+      <div class="field"><div class="field-label"><label class="field-title" for="requesty-main">Conversation model (Main)</label><p id="requesty-main-help" class="field-description privacy-help">Handles your conversation and tasks.</p>
+      </div><div class="field-control"><select id="requesty-main" aria-describedby="requesty-main-help" x-model="$store.requesty.main" @change="$store.requesty.invalidateTest()"><option value="">Choose a conversation model</option><template x-for="model in $store.requesty.allowed()" :key="model.id"><option :value="model.id" x-text="model.id"></option></template></select></div></div>
+      <div class="field"><div class="field-label"><label class="field-title" for="requesty-utility">Helper model (Utility)</label><p id="requesty-utility-help" class="field-description privacy-help">Handles background tasks and memory processing. It may receive conversation or recalled memory text.</p>
+      </div><div class="field-control"><select id="requesty-utility" aria-describedby="requesty-utility-help" x-model="$store.requesty.utility" @change="$store.requesty.invalidateTest()"><option value="">Choose a helper model</option><template x-for="model in $store.requesty.allowed()" :key="model.id"><option :value="model.id" x-text="model.id"></option></template></select></div></div>
     </fieldset>
     <details><summary>Browse catalog and exclusion reasons</summary>
-      <label for="requesty-search">Search model names</label><input type="search" id="requesty-search" x-model="$store.requesty.search">
-      <label class="privacy-choice"><input type="checkbox" x-model="$store.requesty.showRejected"> <span>Include excluded models</span></label>
+      <div class="field"><div class="field-label"><label class="field-title" for="requesty-search">Search model names</label></div><div class="field-control"><input type="search" id="requesty-search" x-model="$store.requesty.search"></div></div>
+      <div class="field"><div class="field-label"><label class="field-title" for="requesty-switch-5">Include excluded models</label></div><div class="field-control"><label class="toggle"><input type="checkbox" x-model="$store.requesty.showRejected" id="requesty-switch-5"><span class="toggler" aria-hidden="true"></span></label></div></div>
       <p x-show="$store.requesty.catalogLoaded && !$store.requesty.filtered().length">No results in this view. Clear the search or include excluded models to see more.</p>
       <div class="privacy-table-scroll" tabindex="0" aria-label="Model catalog, scroll horizontally if needed">
         <table><caption>Model requirements according to the catalog</caption><thead><tr><th scope="col">Model</th><th scope="col">Processing location</th><th scope="col">Requirement check</th><th scope="col">Capabilities</th></tr></thead><tbody>
@@ -81,12 +77,11 @@
     </details>
   </section>
   <section class="privacy-card" aria-labelledby="requesty-test-title">
-    <h3 id="requesty-test-title">4. Test and create your setup</h3>
+    <h3 id="requesty-test-title" class="section-title">4. Test and create your setup</h3>
     <p>The test sends a fixed artificial example, no chats or memory: at most two requests with up to 256 output tokens each. Small API charges may apply.</p>
     <button class="btn" type="button" @click="$store.requesty.testModels(config, context.hasUnsavedChanges)" :disabled="$store.requesty.busy || context.hasUnsavedChanges || !$store.requesty.catalogCurrent(config) || !$store.requesty.main || !$store.requesty.utility">Run example model test</button>
     <p x-show="$store.requesty.testCurrent(config)">Model test passed for this selection. It expires after 10 minutes and does not independently verify provider privacy claims.</p>
-    <label for="requesty-preset">Name for this profile model setup</label>
-    <input type="text" id="requesty-preset" x-model="$store.requesty.presetName" :disabled="$store.requesty.busy" maxlength="80">
+    <div class="field"><div class="field-label"><label class="field-title" for="requesty-preset">Name for this profile model setup</label></div><div class="field-control"><input type="text" id="requesty-preset" x-model="$store.requesty.presetName" :disabled="$store.requesty.busy" maxlength="80"></div></div>
     <button class="btn" type="button" @click="$store.requesty.createPreset(config, context.hasUnsavedChanges)" :disabled="$store.requesty.busy || context.hasUnsavedChanges || !$store.requesty.catalogCurrent(config) || !$store.requesty.testCurrent(config) || !$store.requesty.presetName.trim()">Create model setup</button>
     <p>Creating a setup does not activate it. Activation applies to all chats using this selected profile. It overrides Main and Utility while active; deactivate to return to native model settings.</p>
     <p class="privacy-note" x-show="$store.requesty.createdPreset" x-text="'Created: ' + $store.requesty.createdPreset + ($store.requesty.active ? '. Active for this profile.' : '. Created, not activated.')"></p>
