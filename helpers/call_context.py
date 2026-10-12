@@ -25,6 +25,9 @@ def owner(agent):
     from usr.plugins.requesty.helpers import scope
     root = root_agent(agent)
     candidate = scope.from_agent(root)
+    from usr.plugins.requesty.helpers.instance import manager
+    instance=manager()
+    if instance is not None:return instance.requesty_owner(root)
     setup = scope.read(candidate, "setup.json")
     if setup and setup.get("active") and scope.enabled(candidate):
         return candidate

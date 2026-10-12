@@ -9,6 +9,7 @@ class GuardedRequestyWrapper(LiteLLMChatWrapper):
     _requesty_slot: str | None = PrivateAttr(default=None)
     _requesty_test: bool = PrivateAttr(default=False)
     _requesty_policy_bound: bool = PrivateAttr(default=False)
+    _requesty_policy_scope: tuple | None = PrivateAttr(default=None)
 
     async def unified_call(self, *args, **kwargs):
         data = {"args": (self,), "kwargs": kwargs}
@@ -36,6 +37,7 @@ class GuardedRequestyWrapper(LiteLLMChatWrapper):
 class GuardedLocalWrapper(LiteLLMChatWrapper):
     _requesty_scope: tuple | None = PrivateAttr(default=None)
     _requesty_policy_bound: bool = PrivateAttr(default=True)
+    _requesty_policy_scope: tuple | None = PrivateAttr(default=None)
 
     def checked(self, kwargs):
         data = {"args":(self,),"kwargs":kwargs}

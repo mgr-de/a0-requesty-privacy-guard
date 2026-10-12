@@ -9,6 +9,8 @@ PLUGIN='requesty'
 
 def inherited(agent):
     if agent is None:return False
+    from usr.plugins.requesty.helpers.instance import manager
+    if manager() is not None:return True
     from helpers import plugins
     from usr.plugins.requesty.helpers import scope
     from usr.plugins.requesty.helpers.call_context import root_agent

@@ -9,6 +9,7 @@
 <template x-if="$store.requesty && config">
 <div class="privacy-settings" x-init="$store.requesty.onOpen(context)" x-destroy="$store.requesty.cleanup()" x-effect="$store.requesty.setScope(context)" :aria-busy="$store.requesty.busy">
   <h2 class="section-title">Private model setup</h2>
+  <p>If Requesty Privacy Agent protects this installation, all profiles inherit its common key and minimum rules. This editor can create a profile's own model setup; weaker settings and profile toggles do not switch off the installation-wide rules.</p>
   <aside class="privacy-note"><strong>One agent profile at a time.</strong><p>Choose an Agent profile in the toolbar. Keys, privacy rules, model setup and memory storage belong to this selected profile. Global presets and keys are never changed.</p><p x-text="context.agentProfileKey ? 'Selected profile: ' + context.agentProfileKey : 'No profile selected — setup actions are unavailable.'"></p></aside>
   <div x-show="!context.agentProfileKey">
     <p>Requesty is configured for one agent profile. Choose an Agent profile above to edit its saved setup.</p>
@@ -45,13 +46,13 @@
     <h3 id="requesty-policy-title" class="section-title">2. Set privacy requirements</h3>
     <fieldset :disabled="$store.requesty.busy">
       <legend>Routing and provider rules</legend>
-      <div class="field"><div class="field-label"><label class="field-title" for="requesty-region">Gateway region</label></div><div class="field-control"><select id="requesty-region" x-model="config.region" @change="$store.requesty.invalidateTest()">
+      <div class="field"><div class="field-label"><label class="field-title" for="requesty-region">Gateway region</label></div><div class="field-control"><select id="requesty-region" x-model="config.region" :disabled="$store.requesty.instanceActive" @change="$store.requesty.invalidateTest()">
         <option value="eu">European Union · Frankfurt</option><option value="us">United States</option><option value="ap">Asia-Pacific</option><option value="global">Global</option>
       </select></div></div>
       <p class="field-description privacy-help">The gateway location and the model's processing location are separate. Use the next requirement to restrict model processing too.</p>
-      <div class="field"><div class="field-label"><label class="field-title" for="requesty-switch-1">Require model processing in the selected region</label></div><div class="field-control"><label class="toggle"><input type="checkbox" x-model="config.strict_region" @change="$store.requesty.invalidateTest()" id="requesty-switch-1"><span class="toggler" aria-hidden="true"></span></label></div></div>
-      <div class="field"><div class="field-label"><label class="field-title" for="requesty-switch-2">Require the model provider to retain no request data</label></div><div class="field-control"><label class="toggle"><input type="checkbox" x-model="config.no_retention" @change="$store.requesty.invalidateTest()" id="requesty-switch-2"><span class="toggler" aria-hidden="true"></span></label></div></div>
-      <div class="field"><div class="field-label"><label class="field-title" for="requesty-switch-3">Require the model provider not to use request data for training</label></div><div class="field-control"><label class="toggle"><input type="checkbox" x-model="config.no_training" @change="$store.requesty.invalidateTest()" id="requesty-switch-3"><span class="toggler" aria-hidden="true"></span></label></div></div>
+      <div class="field"><div class="field-label"><label class="field-title" for="requesty-switch-1">Require model processing in the selected region</label></div><div class="field-control"><label class="toggle"><input type="checkbox" x-model="config.strict_region" :disabled="$store.requesty.instanceActive" @change="$store.requesty.invalidateTest()" id="requesty-switch-1"><span class="toggler" aria-hidden="true"></span></label></div></div>
+      <div class="field"><div class="field-label"><label class="field-title" for="requesty-switch-2">Require the model provider to retain no request data</label></div><div class="field-control"><label class="toggle"><input type="checkbox" x-model="config.no_retention" :disabled="$store.requesty.instanceActive" @change="$store.requesty.invalidateTest()" id="requesty-switch-2"><span class="toggler" aria-hidden="true"></span></label></div></div>
+      <div class="field"><div class="field-label"><label class="field-title" for="requesty-switch-3">Require the model provider not to use request data for training</label></div><div class="field-control"><label class="toggle"><input type="checkbox" x-model="config.no_training" :disabled="$store.requesty.instanceActive" @change="$store.requesty.invalidateTest()" id="requesty-switch-3"><span class="toggler" aria-hidden="true"></span></label></div></div>
       <details><summary>Advanced: Requesty organization retention</summary>
         <p>Requesty's own zero data retention (ZDR) cannot currently be verified through the documented API. Requiring verification currently blocks all requests.</p>
         <div class="field"><div class="field-label"><label class="field-title" for="requesty-switch-4">Block requests unless Requesty organization ZDR is verified</label></div><div class="field-control"><label class="toggle"><input type="checkbox" x-model="config.require_requesty_zdr" @change="$store.requesty.invalidateTest()" id="requesty-switch-4"><span class="toggler" aria-hidden="true"></span></label></div></div>
@@ -100,6 +101,20 @@
     <p x-show="$store.requesty.active">Native preset selections remain selected and are checked against this profile's requirements. To change this setup, load the catalog, choose models, test and create the replacement.</p>
     <button class="btn" type="button" @click="$store.requesty.activate()" :disabled="$store.requesty.busy || !$store.requesty.createdPreset || $store.requesty.active">Activate for this profile</button>
   </section>
+  <details class="privacy-card"><summary>Recommended Requesty account settings</summary>
+    <p>These settings apply to the whole Requesty organization, including other applications. They add protection at the gateway; local checks remain necessary.</p>
+    <label><input type="checkbox" x-model="$store.requesty.accountSettings.eu_gateway"> Serving region: EU only</label><br>
+    <label><input type="checkbox" x-model="$store.requesty.accountSettings.requesty_zdr"> Requesty zero data retention</label><br>
+    <label><input type="checkbox" x-model="$store.requesty.accountSettings.provider_zdr"> Zero-data-retention models only</label><br>
+    <label><input type="checkbox" x-model="$store.requesty.accountSettings.approved_eu_models"> Approved models reviewed for EU hosting, no retention and no training</label>
+    <p>The EU gateway controls Requesty's region, not the provider's model location. Requesty retention and provider retention are separate. Usage telemetry remains. Locked settings may require support to change.</p>
+    <p><a href="https://docs.requesty.ai/features/compliance-report" target="_blank" rel="noopener noreferrer">Requesty Compliance instructions</a> · <a href="https://docs.requesty.ai/features/data-privacy" target="_blank" rel="noopener noreferrer">Logging and retention</a></p>
+    <img src="/plugins/requesty/webui/requesty-compliance-2026-10-12.png" alt="Example Requesty Compliance page, 12 October 2026: EU serving region, gateway zero retention, provider zero retention and approved models enabled" style="max-width:100%;height:auto">
+    <p>Example dated 12 October 2026. The model count of 225 is not a recommended target or proof of your current settings.</p>
+    <button type="button" class="btn" @click="$store.requesty.confirmAccount()" :disabled="$store.requesty.busy">Record my confirmation</button>
+    <p x-show="$store.requesty.account.confirmed_at" x-text="'User-confirmed: '+$store.requesty.account.confirmed_at+' · Not technically verified'"></p>
+    <p>This confirmation does not satisfy or bypass the technically enforced Requesty ZDR requirement.</p>
+  </details>
   <details class="privacy-card"><summary>Advanced: memory, images and recovery</summary>
     <p>When Requesty is the helper model, automatic memory updates append entries without consolidating or replacing existing entries. Recall remains available. Manual changes retain standard Agent Zero behavior.</p>
     <p>Existing memory folders and embeddings are preserved. While active, this profile uses a separate memory folder. Existing memories are not copied into it. Main, Browser and separate Vision models must meet the same model-route requirements. Images are processed by the selected service; local text masking does not protect their image content.</p>

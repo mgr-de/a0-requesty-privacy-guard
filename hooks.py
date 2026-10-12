@@ -22,6 +22,9 @@ def uninstall(**kwargs):
     # Profile overrides stop through framework removal. Shared presets and
     # selections are never rewritten; legacy presets require explicit migration.
     catalog.clear()
+    from usr.plugins.requesty.helpers.instance import manager
+    if manager() is not None:
+        raise ValueError('Deactivate Privacy Agent centrally before uninstalling a required component.')
     result = {"status": "ok", "note": "Shared presets, keys and profile data preserved."}
     import importlib.util
     source=Path(__file__).parent/'helpers'/'inherited_bridge.py'
@@ -57,4 +60,7 @@ def get_plugin_config(default=None, project_name="", agent_profile="", **kwargs)
         return asdict(Policy())
     from usr.plugins.requesty.helpers import scope
     raw = scope.read(scope.scope(project_name or "", agent_profile), "config.json")
+    from usr.plugins.requesty.helpers.instance import manager
+    instance=manager()
+    if instance is not None:return instance.effective_policy(raw)
     return asdict(Policy.parse(raw)) if raw is not None else asdict(Policy())

@@ -42,7 +42,19 @@ async def validate(main, utility, expected_policy, owner):
             api_base=policy.endpoint, api_key=key, max_tokens=256, timeout=30, a0_retry_attempts=0)
         wrapper._requesty_scope = owner
         wrapper._requesty_test = True
+        test_agent=None
         try:
+            from usr.plugins.requesty.helpers.instance import manager
+            if manager() is not None:
+                from agent import Agent,AgentConfig,AgentContextType
+                from helpers import projects
+                from usr.plugins.local_privacy_guard.helpers.model_guard import bind
+                test_agent=Agent(0,AgentConfig(profile=owner[1],mcp_servers=''))
+                test_agent.context.type=AgentContextType.BACKGROUND
+                test_agent.context.set_data(projects.CONTEXT_DATA_KEY_PROJECT,owner[0] or None)
+                test_agent.context.set_data('_privacy_model_test_scope',list(owner))
+                test_agent.context.set_data('privacy_agent_mapping_identity',list(owner))
+                data={'result':wrapper};bind(data,test_agent);wrapper=data['result']
             response, _ = await wrapper.unified_call(user_message=PROMPT)
             import json
             parsed = json.loads(response.strip())
@@ -52,6 +64,11 @@ async def validate(main, utility, expected_policy, owner):
             raise
         except Exception:
             raise PolicyError("Synthetic model test failed or returned an incompatible Agent Zero response. No preset was created.") from None
+        finally:
+            if test_agent is not None:
+                from agent import AgentContext
+                from usr.plugins.local_privacy_guard.helpers.mapping_cleanup import remove_chat
+                AgentContext.remove(test_agent.context.id);remove_chat(test_agent.context.id)
     if before != state(main, utility, owner):
         raise PolicyError("Configuration changed during model tests; run them again.")
     ticket = secrets.token_urlsafe(24)

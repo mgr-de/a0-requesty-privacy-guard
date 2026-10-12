@@ -34,7 +34,9 @@ class ModelStatus(ApiHandler):
         if not selected:
             config.update(chat_model=setup["models"]["chat"], utility_model=setup["models"]["utility"])
         local_selection=False
-        if selected:
+        from usr.plugins.requesty.helpers.instance import manager
+        instance=manager()
+        if selected or instance is not None:
             try:
                 from usr.plugins.requesty.helpers.runtime_guard import guarded_kwargs,local_kwargs,is_requesty
                 kinds=[]
@@ -54,5 +56,7 @@ class ModelStatus(ApiHandler):
         result['requesty_active']=True
         result['requesty_owner_profile']=owner[1]
         result['effective_models']={slot:{key:config.get(section,{}).get(key,'') for key in ('provider','name')}
-            for slot,section in [('main','chat_model'),('utility','utility_model'),('embedding','embedding_model')]}
+            for slot,section in [('main','chat_model'),('utility','utility_model'),('vision','vision_model'),('embedding','embedding_model')]}
+        result['model_route']=config.get('chat_model',{}).get('api_base','')
+        result['instance_protection']=instance is not None
         return result

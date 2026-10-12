@@ -14,6 +14,8 @@ def scope(project="", profile=""):
     return (project, profile)
 
 def from_input(value):
+    if value.get('agent_profile')=='privacy_agent_shared':
+        raise PolicyError('The common installation setup is managed through Privacy Agent.')
     return scope(value.get("project_name", ""), value.get("agent_profile", ""))
 
 def from_agent(agent):
@@ -25,6 +27,13 @@ def from_agent(agent):
 def path(owner, name):
     from helpers import plugins, files
     project, profile = scope(*owner)
+    if (project,profile)==("","privacy_agent_shared"):
+        target=Path(files.get_abs_path(files.USER_DIR))/'privacy-agent'/name
+        if name not in {'config.json','setup.json','credentials.json','account.json'}:
+            raise PolicyError('Unknown shared Privacy Agent asset.')
+        if target.parent.is_symlink() or target.is_symlink() or not target.resolve().is_relative_to(Path(files.get_abs_path(files.USER_DIR)).resolve()):
+            raise PolicyError('Shared Privacy Agent storage is unsafe.')
+        return target
     target = Path(plugins.determine_plugin_asset_path("requesty", project, profile, name)).resolve()
     root = Path(files.get_abs_path(files.USER_DIR)).resolve()
     if name == "credentials.json":
@@ -49,6 +58,10 @@ def read(owner, name, default=None):
 
 def key(owner):
     value = read(owner, "credentials.json", {}).get("key", "")
+    if not value and tuple(owner)!=("","privacy_agent_shared"):
+        from usr.plugins.requesty.helpers.instance import manager
+        instance=manager()
+        if instance is not None:value=read(instance.SHARED,'credentials.json',{}).get('key','')
     if not isinstance(value, str) or not value.strip() or value in ("None", "NA"):
         raise PolicyError("Save a Requesty API key for this agent profile first.")
     return value
@@ -57,6 +70,9 @@ def memory_subdir(owner):
     return "requesty-profiles/" + hashlib.sha256(json.dumps(owner).encode()).hexdigest()[:32]
 
 def enabled(owner):
+    from usr.plugins.requesty.helpers.instance import manager
+    if manager() is not None:return True
+    if tuple(owner)==("","privacy_agent_shared"):return False
     from helpers import plugins
     if not (Path(__file__).parents[1]/'plugin.yaml').is_file():return False
     assets = plugins.find_plugin_assets(".toggle-*", plugin_name="requesty",

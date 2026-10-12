@@ -59,10 +59,12 @@ def test_tool_vision_without_owner_is_guarded(protected):
     marker=tool_agent.set(agent)
     try:
         with patch.object(scope,"from_agent",return_value=("","A")):
-            data={"args":(make(),),"kwargs":{"messages":[]}}
-            data["args"][0]._requesty_scope=None
+            cached=make();cached._requesty_scope=None
+            data={"args":(cached,),"kwargs":{"messages":[]}}
             guard.guard_function(data)
-            assert data["args"][0]._requesty_scope is None
+            assert cached._requesty_scope is None
+            assert data['args'][0] is not cached
+            assert data['args'][0]._requesty_scope==('','A')
             assert data['kwargs']['api_key']=='synthetic-profile-key'
     finally:tool_agent.reset(marker)
 

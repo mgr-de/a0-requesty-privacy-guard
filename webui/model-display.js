@@ -11,6 +11,10 @@ export function installModelDisplay(store, currentContext) {
 
 export function updateModelDisplay(store, contextId, currentContext, status, override) {
     if (contextId!==currentContext()) return;
+    if(status?.model_configured===false && status?.policy_error){
+        store._requestyModelDisplay={contextId,label:'Privacy: Modellaufruf blockiert',models:status.effective_models||{}};
+        return;
+    }
     if (!status?.requesty_active) {store._requestyModelDisplay=null;return;}
     const main=status.effective_models?.main?.name || '';
     const leaf=main.slice(main.lastIndexOf('/')+1);

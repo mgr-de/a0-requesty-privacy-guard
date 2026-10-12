@@ -3,7 +3,27 @@ import { callJsonApi } from "/js/api.js";
 import { toastFrontendSuccess } from "/components/notifications/notification-store.js";
 
 export const store = createStore("requesty", {
-    models: [], busy: false, search: "", showRejected: false,
+    account: {}, accountSettings: {eu_gateway:false,requesty_zdr:false,provider_zdr:false,approved_eu_models:false},
+    async loadAccount() {
+        const epoch=this.epoch;
+        const result=await callJsonApi('plugins/requesty/account',{...this.scopePayload()});
+        if(epoch!==this.epoch)return;
+        this.account=result.account || {};
+        this.accountSettings={eu_gateway:false,requesty_zdr:false,provider_zdr:false,approved_eu_models:false,...this.account.settings};
+    },
+    async confirmAccount() {
+        if(this.busy)return;
+        const epoch=this.epoch;this.busy=true;
+        try {
+            const result=await callJsonApi('plugins/requesty/account',{action:'set',settings:{...this.accountSettings},...this.scopePayload()});
+            if(epoch!==this.epoch)return;
+            if(!result.ok)throw new Error(result.error);
+            this.account=result.account;
+            toastFrontendSuccess('Account settings recorded as user-confirmed, not technically verified.','Requesty');
+        } catch(e) {if(epoch===this.epoch)this.error=e.message;}
+        finally {if(epoch===this.epoch)this.busy=false;}
+    },
+    instanceActive:false, models: [], busy: false, search: "", showRejected: false,
     main: "", utility: "", presetName: "Requesty Private", key: "", hasKey: false,
     keyKnown: false, catalogPolicy: "", epoch: 0, ticket: "", testState: "",
     error: "", message: "", createdPreset: "", createdState: "", catalogLoaded: false,
@@ -37,15 +57,18 @@ export const store = createStore("requesty", {
             if (epoch !== this.epoch) return;
             if (!result.ok) throw new Error(result.error || "Could not read profile key status.");
             this.hasKey = !!result.has_key; this.createdPreset = result.setup || ""; this.active = !!result.active;
+            this.instanceActive=!!result.instance_protection;
             this.savedMain = result.main || ""; this.savedUtility = result.utility || "";
             this.main = this.savedMain; this.utility = this.savedUtility;
             this.presetName = this.createdPreset || "Requesty Private";
             this.requirementsSaved = !!result.requirements_saved;
             this.keyKnown = true;
+            await this.loadAccount();
         } catch { if (epoch === this.epoch) this.error = "Could not read the saved key status. Reopen settings to retry."; }
         finally { if (epoch === this.epoch) this.busy = false; }
     },
     cleanup() {
+        this.account={};this.accountSettings={eu_gateway:false,requesty_zdr:false,provider_zdr:false,approved_eu_models:false};
         this.epoch++;
         if (this.timer) clearInterval(this.timer);
         this.timer = null; this.busy = false; this.key = ""; this.hasKey = false; this.keyKnown = false; this.active = false; this.requirementsSaved = false;

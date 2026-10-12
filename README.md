@@ -1,7 +1,7 @@
 <p align="center"><img src="assets/icon.svg" alt="Requesty Privacy Guard" width="128" height="128"></p>
 # Requesty for Agent Zero 2.13
 
-Version 0.4.2. Privacy policy, credentials and model setup belong to an explicit agent profile, optionally within a project. Shared model presets and global API keys are never written by setup or deactivation.
+Version 0.5.0. Privacy policy, credentials and model setup belong to an explicit agent profile, optionally within a project. Shared model presets and global API keys are never written by setup or deactivation.
 
 An active setup supplies default Main and Utility models. Explicit native presets remain selected and must meet the profile policy: external models use Requesty, while explicitly configured native local endpoints are allowed. Incompatible selections are rejected without silently replacing them. Main, Utility, Browser and separate Vision calls are checked; image support must be confirmed in the Requesty catalog. Subordinate agents inherit the active root profile's minimum policy during native tool calls. Independent chats retain their own settings.
 
@@ -71,3 +71,10 @@ See [1.4 / 0.4 test results](docs/STANDARD-TEST-RESULTS.md) for native routes, m
 See [the 12 October correction](docs/KORREKTUR-2026-10-12.md): effective Requesty model labels replace misleading shared-default labels in protected chats, without changing presets. Provider-specific local-server probes were removed.
 
 See [test environment and settings entry](docs/TEST-ENVIRONMENT.md) for the fixed Privacy Test profile, temporary isolation fixtures, and choosing an explicit profile before editing Requesty.
+
+
+## Kontoempfehlung und gemeinsamer Privacy Agent
+
+[Empfohlene Requesty-Kontoeinstellungen mit Screenshot](docs/REQUESTY-ACCOUNT-SETTINGS.md): EU-Gateway, Requesty-ZDR, Anbieter-ZDR und geprüfte EU-Modelle. Die Kontocheckliste in Config ist eine datierte Nutzerbestätigung, keine technische Prüfung. Native Preset-Menüs erhalten Zulässigkeit und konkrete Ablehnungsgründe; aktuelle Modellidentitäten einschließlich Vision bleiben sichtbar.
+
+[Requesty Privacy Agent](https://github.com/mgr-de/a0-requesty-privacy-agent) ist ein separates Komfort-Plugin für die gesamte Installation. Es setzt Mindestregeln und gemeinsame Modelle/Schlüssel durch, ohne gespeicherte Profile oder gemeinsame Presets umzuschreiben. Eigene aktive Profilsetups bleiben möglich; strengere Profilanforderungen gelten auch bei geerbten Modellen. Dieses Plugin bleibt allein weiterhin profilbezogen nutzbar.

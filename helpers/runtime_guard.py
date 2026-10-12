@@ -5,6 +5,8 @@ from usr.plugins.requesty.helpers import catalog
 from usr.plugins.requesty.helpers import scope
 from urllib.parse import urlparse
 
+INSTANCE_API_VERSION=1
+
 
 def is_local_route(wrapper, options):
     """Recognize an explicitly configured host-local native endpoint, without probing it."""
@@ -28,6 +30,9 @@ def local_kwargs(wrapper, overrides):
 
 def settings(owner):
     raw = scope.read(owner, "config.json")
+    from usr.plugins.requesty.helpers.instance import manager
+    instance=manager()
+    if instance is not None:return Policy.parse(instance.effective_policy(raw))
     if raw is None:
         raise PolicyError("Save privacy requirements for this agent profile first.")
     return Policy.parse(raw)
@@ -54,7 +59,8 @@ def guarded_kwargs(wrapper, overrides):
         slot = getattr(wrapper, "_requesty_slot", None)
         if not setup or not setup.get("active"):
             raise PolicyError("The owning profile setup changed or is inactive. Rebuild the model before requesting.")
-    policy = settings(owner)
+    policy_owner=getattr(wrapper,'_requesty_policy_scope',None) or owner
+    policy = settings(policy_owner)
     effective = models._merge_litellm_call_kwargs(wrapper.kwargs, overrides)
     # Do not let unvalidated secondary request bodies or transport choices bypass routing.
     forbidden = {"base_url", "model", "messages", "custom_llm_provider", "api_version",
@@ -95,7 +101,7 @@ def guarded_kwargs(wrapper, overrides):
     identifier = identifier[len("openai/"):]
     available = catalog.fetch(policy.endpoint, key)
     policy.check(available.get(identifier))
-    if settings(owner) != policy or scope.key(owner) != raw or not scope.enabled(owner):
+    if settings(policy_owner) != policy or scope.key(owner) != raw or not scope.enabled(owner):
         raise PolicyError("Requesty configuration changed during validation; retry the request.")
     if setup is not None and scope.read(owner, "setup.json") != setup:
         raise PolicyError("The profile setup changed during validation; retry the request.")
@@ -107,6 +113,12 @@ def guard_function(data):
     wrapper = data["args"][0]
     from usr.plugins.requesty.helpers.call_context import tool_agent, owner as inherited_owner
     active_agent = tool_agent.get()
+    if active_agent is None:
+        try:
+            from usr.plugins.local_privacy_guard.helpers.model_guard import filtered_call
+            proof=filtered_call.get()
+            if proof and proof[0] is wrapper:active_agent=proof[1]
+        except ImportError:pass
     if active_agent is not None and getattr(wrapper, "_requesty_scope", None) is None:
         owner = inherited_owner(active_agent)
         setup = scope.read(owner, "setup.json")
@@ -114,9 +126,26 @@ def guard_function(data):
             # Native Vision wrappers can be shared by the framework cache.
             # Validate a per-call copy; never attach one chat's owner to it.
             wrapper = wrapper.model_copy(deep=True)
+            endpoint=wrapper.kwargs.get('api_base') or getattr(wrapper.a0_model_conf,'api_base','')
+            native_requesty=is_requesty(wrapper) or (
+                str(endpoint).rstrip('/') in ENDPOINTS.values() and wrapper.model_name.startswith('openai/'))
+            if native_requesty and not wrapper.model_name.startswith('openai/'):
+                # Provider discovery may be off; construct the compatible
+                # transport explicitly without changing the shared cache.
+                from usr.plugins.requesty.helpers.wrapper import GuardedRequestyWrapper
+                wrapper=GuardedRequestyWrapper(model=wrapper.a0_model_conf.name,provider='openai',
+                    model_config=deepcopy(wrapper.a0_model_conf),**deepcopy(wrapper.kwargs))
+            if native_requesty:
+                wrapper.a0_model_conf=deepcopy(wrapper.a0_model_conf)
+                wrapper.a0_model_conf.provider='requesty_guarded'
             wrapper._requesty_scope = owner
             wrapper._requesty_slot = "vision"
             wrapper._requesty_policy_bound = True
+            from usr.plugins.requesty.helpers.instance import manager
+            if manager() is not None:
+                from usr.plugins.requesty.helpers.call_context import root_agent
+                wrapper._requesty_policy_scope=scope.from_agent(root_agent(active_agent))
+            data['args']=(wrapper,*data['args'][1:])
     policy_bound = getattr(wrapper, "_requesty_policy_bound", False)
     if policy_bound and not is_requesty(wrapper):
         names = {"system_message", "user_message", "messages", "response_callback", "reasoning_callback",
@@ -156,6 +185,10 @@ def wrap_agent_result(data, agent=None, slot=None):
     owner = inherited_owner(agent) if agent is not None else getattr(data.get("result"), "_requesty_scope", None)
     setup = scope.read(owner, "setup.json") if owner else None
     if agent is not None and setup and setup.get("active") and scope.enabled(owner):
+        from usr.plugins.requesty.helpers.instance import manager
+        instance=manager()
+        from usr.plugins.requesty.helpers.call_context import root_agent
+        policy_owner=scope.from_agent(root_agent(agent)) if instance is not None else owner
         import models
         from usr.plugins.requesty.helpers.wrapper import GuardedRequestyWrapper
         # Native chat/browser presets are actual selections, not hints to ignore.
@@ -163,12 +196,18 @@ def wrap_agent_result(data, agent=None, slot=None):
         override = agent.context.get_data("chat_model_override")
         browser_selected = agent.context.get_data("_browser_model_active")
         if selected is not None and (override or browser_selected):
+            endpoint=selected.kwargs.get('api_base') or getattr(selected.a0_model_conf,'api_base','')
+            if not is_requesty(selected) and str(endpoint).rstrip('/') in ENDPOINTS.values() and selected.model_name.startswith('openai/'):
+                selected=selected.model_copy(deep=True)
+                selected.a0_model_conf=deepcopy(selected.a0_model_conf)
+                selected.a0_model_conf.provider='requesty_guarded'
             if not is_requesty(selected) and is_local_route(selected,selected.kwargs):
                 from usr.plugins.requesty.helpers.wrapper import GuardedLocalWrapper
                 prefix, name = selected.model_name.split("/",1)
                 local = GuardedLocalWrapper(model=name,provider=prefix,model_config=deepcopy(selected.a0_model_conf), **deepcopy(selected.kwargs))
                 local._requesty_scope = owner
                 local._requesty_policy_bound = True
+                local._requesty_policy_scope=policy_owner
                 local_kwargs(local,{})
                 data["result"] = local
                 return
@@ -192,6 +231,7 @@ def wrap_agent_result(data, agent=None, slot=None):
         wrapper._requesty_scope = owner
         wrapper._requesty_slot = slot
         wrapper._requesty_policy_bound = True
+        wrapper._requesty_policy_scope=policy_owner
         data["result"] = wrapper
         return
     wrapper = data.get("result")

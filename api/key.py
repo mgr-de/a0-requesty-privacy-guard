@@ -14,12 +14,19 @@ class Key(ApiHandler):
                     raise PolicyError("Enter a valid API key.")
                 with self.thread_lock:
                     atomic_write(scope.path(owner, "credentials.json"), json.dumps({"key": value.strip()}))
+                    atomic_write(scope.path(owner,'account.json'),'{}')
             elif input.get("action", "get") != "get":
                 raise PolicyError("Unknown key action.")
             value = scope.read(owner, "credentials.json", {}).get("key", "")
+            if not value:
+                try:value=scope.key(owner)
+                except PolicyError:pass
             setup = scope.read(owner, "setup.json", {})
             models = setup.get("models", {})
+            from usr.plugins.requesty.helpers.instance import manager
+            instance=manager()
             return {"ok": True, "has_key": bool(value), "setup": setup.get("models", {}).get("name", ""),
+                    "instance_protection":instance is not None,
                     "main": models.get("chat", {}).get("name", ""),
                     "utility": models.get("utility", {}).get("name", ""),
                     "active": setup.get("active", False) and scope.enabled(owner),
