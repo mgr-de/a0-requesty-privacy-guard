@@ -7,7 +7,12 @@ tool_agent = ContextVar("requesty_tool_agent", default=None)
 def root_agent(agent):
     from agent import AgentContext
     from usr.plugins.requesty.helpers.policy import PolicyError
+    from plugins._agent_editor.helpers.editor import EditorAgent
+    if isinstance(agent,EditorAgent):return agent
     current=getattr(agent.context,'agent0',None) or agent
+    # Native profile editors use a lightweight context without chat identity.
+    # Configuration reads need profile ownership, not parent-chat traversal.
+    if not getattr(current.context,'id',None):return current
     seen=set()
     while current.context.id not in seen:
         seen.add(current.context.id)
