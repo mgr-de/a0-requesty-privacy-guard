@@ -70,7 +70,7 @@ class ProfileIsolationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(plugins.get_plugin_config("_memory",self.beta),original)
         self.assertNotEqual(memory.get_agent_memory_subdir(self.alpha),memory.get_agent_memory_subdir(self.beta))
 
-    async def test_active_setup_suspends_raw_and_named_chat_overrides_without_destroying_them(self):
+    async def test_active_setup_rejects_unapproved_presets_without_destroying_them(self):
         native_alpha=deepcopy(mc.get_effective_config(self.alpha))
         self.write_setup(self.a)
         native_embedding=deepcopy(mc.get_config(self.alpha).get("embedding_model"))
@@ -82,18 +82,15 @@ class ProfileIsolationTests(unittest.IsolatedAsyncioTestCase):
             with self.subTest(override=override):
                 self.alpha.context.set_data("chat_model_override",deepcopy(override))
                 effective=mc.get_effective_config(self.alpha)
-                self.assertEqual(effective["vision_model"],{})
-                self.assertEqual(effective.get("embedding_model"),native_embedding)
                 from usr.plugins.requesty.helpers.chat_override import backup_key
-                self.assertIsNone(self.alpha.context.get_data("chat_model_override"))
-                self.assertEqual(self.alpha.context.get_data(backup_key(self.a)),override)
-                self.assertEqual(self.alpha.get_chat_model()._requesty_scope,self.a)
-                self.assertEqual(self.alpha.get_utility_model()._requesty_scope,self.a)
+                self.assertEqual(self.alpha.context.get_data("chat_model_override"),override)
+                self.assertIsNone(self.alpha.context.get_data(backup_key(self.a)))
+                with self.assertRaises(PolicyError):self.alpha.get_chat_model()
                 self.assertEqual(mc.get_effective_config(self.beta),native_beta)
         self.alpha.context.set_data("chat_model_override",None)
         with patch.object(configuration,"fetch",return_value={IDENTIFIER:METADATA}):
             configuration.recover(self.a)
-        self.assertEqual(self.alpha.context.get_data("chat_model_override"),override)
+        self.assertIsNone(self.alpha.context.get_data("chat_model_override"))
         self.alpha.context.set_data("chat_model_override",None)
         self.assertEqual(mc.get_effective_config(self.alpha),native_alpha)
 
@@ -103,9 +100,25 @@ class ProfileIsolationTests(unittest.IsolatedAsyncioTestCase):
         self.write_setup(self.a)
         self.alpha.context.set_data("chat_model_override",{"preset_name":mc.DEFAULT_PRESET_NAME})
         result=await ModelStatus(None,threading.RLock()).process({"context_id":self.alpha.context.id},None)
-        self.assertTrue(result["model_configured"])
+        self.assertFalse(result["model_configured"])
+        self.assertIn('bypasses Requesty',result['policy_error'])
         self.assertEqual(result["config"]["vision_model"],{})
-        self.assertEqual(result["config"]["chat_model"]["name"],IDENTIFIER)
+        self.assertEqual(result["config"]["chat_model"]["name"],mc.get_chat_model_config(self.alpha)["name"])
+        self.assertEqual(self.alpha.context.get_data("chat_model_override"),{"preset_name":mc.DEFAULT_PRESET_NAME})
+
+    async def test_local_preset_remains_ready_without_requesty_key(self):
+        from usr.plugins.requesty.api.model_status import ModelStatus
+        import threading
+        self.write_setup(self.a)
+        slot={'provider':'ollama_chat','name':'gemma3:4b','kwargs':{'api_base':'http://host.docker.internal:11434'}}
+        override={'chat':slot,'utility':slot,'vision':{}}
+        self.alpha.context.set_data('chat_model_override',deepcopy(override))
+        scope.path(self.a,'credentials.json').write_text('{}')
+        with patch.object(guard.local_models,'confirm',return_value=True):
+            result=await ModelStatus(None,threading.RLock()).process({'context_id':self.alpha.context.id},None)
+        self.assertTrue(result['model_configured'])
+        self.assertFalse(result['api_key_status']['requesty_guarded'])
+        self.assertEqual(self.alpha.context.get_data('chat_model_override'),override)
 
     async def test_ticket_cannot_cross_profile_even_with_same_models_and_state(self):
         validation._tickets.clear()

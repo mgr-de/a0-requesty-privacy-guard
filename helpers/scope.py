@@ -58,6 +58,7 @@ def memory_subdir(owner):
 
 def enabled(owner):
     from helpers import plugins
+    if not (Path(__file__).parents[1]/'plugin.yaml').is_file():return False
     assets = plugins.find_plugin_assets(".toggle-*", plugin_name="requesty",
         project_name=owner[0], agent_profile=owner[1], only_first=False)
     paths = list(dict.fromkeys(str(Path(item["path"]).parent) for item in assets))

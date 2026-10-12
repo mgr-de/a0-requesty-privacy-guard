@@ -27,9 +27,11 @@ class RuntimeTests(unittest.TestCase):
 
     def test_region_owned_and_model_unchanged(self):
         original = dict(self.wrapper.kwargs)
-        result = guard.guarded_kwargs(self.wrapper, {"api_base": ENDPOINTS["us"]})
+        result = guard.guarded_kwargs(self.wrapper, {})
         self.assertEqual(result["api_base"], ENDPOINTS["eu"])
         self.assertEqual(self.wrapper.kwargs, original)
+        with self.assertRaises(PolicyError):
+            guard.guarded_kwargs(self.wrapper, {"api_base": ENDPOINTS["us"]})
 
     def test_transport_bypasses_blocked(self):
         for name in ("base_url", "model", "custom_llm_provider", "extra_body", "extra_headers", "http_client", "fallbacks"):
@@ -38,6 +40,8 @@ class RuntimeTests(unittest.TestCase):
         for overrides in ({"api_key": "foreign-key"}, {"api_base": "https://other.test"}, {"a0_api_mode": "responses"}):
             with self.assertRaises(PolicyError):
                 guard.guarded_kwargs(self.wrapper, overrides)
+        with self.assertRaises(PolicyError):
+            guard.guarded_kwargs(self.wrapper,{'additional_drop_params':['api_base']})
 
     def test_missing_model_and_disabled(self):
         with patch.object(guard.catalog, "fetch", return_value={}):

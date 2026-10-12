@@ -90,7 +90,7 @@
     <p x-show="$store.requesty.testCurrent(config)">Model test passed for this selection. It expires after 10 minutes and does not independently verify provider privacy claims.</p>
     <div class="field"><div class="field-label"><label class="field-title" for="requesty-preset">Name for this profile model setup</label></div><div class="field-control"><input type="text" id="requesty-preset" x-model="$store.requesty.presetName" :disabled="$store.requesty.busy" maxlength="80"></div></div>
     <button class="btn" type="button" @click="$store.requesty.createPreset(config, context.hasUnsavedChanges)" :disabled="$store.requesty.busy || context.hasUnsavedChanges || !$store.requesty.catalogCurrent(config) || !$store.requesty.testCurrent(config) || !$store.requesty.presetName.trim()">Create model setup</button>
-    <p>Creating a setup does not activate it. Activation applies to all chats using this selected profile. It overrides Main and Utility while active; deactivate to return to native model settings.</p>
+    <p>Creating a setup does not activate it. Activation supplies Main and Utility defaults for this profile. Other native presets remain usable when every model and route meets this profile's requirements; local Ollama models are allowed. An incompatible preset is rejected without changing your selection.</p>
     <p class="privacy-note" x-show="$store.requesty.createdPreset" x-text="'Created: ' + $store.requesty.createdPreset + ($store.requesty.active ? '. Active for this profile.' : '. Created, not activated.')"></p>
     <p x-show="$store.requesty.createdPreset" x-text="'Saved conversation model: ' + $store.requesty.savedMain + ' · Saved helper model: ' + $store.requesty.savedUtility"></p>
     <p x-show="$store.requesty.active">Chat-specific model choices are temporarily suspended while this setup is active. They are preserved and apply again after deactivation. To change this setup, load the catalog, choose models, test and create the replacement.</p>
@@ -98,7 +98,7 @@
   </section>
   <details class="privacy-card"><summary>Advanced: memory, images and recovery</summary>
     <p>When Requesty is the helper model, automatic memory updates append entries without consolidating or replacing existing entries. Recall remains available. Manual changes retain standard Agent Zero behavior.</p>
-    <p>Existing memory folders and embeddings are preserved. While active, this profile uses a separate memory folder. Existing memories are not copied into it. Native image support depends on the conversation model; a separate Vision model is blocked while Requesty is active.</p>
+    <p>Existing memory folders and embeddings are preserved. While active, this profile uses a separate memory folder. Existing memories are not copied into it. Main, Browser and separate Vision models must meet the same model-route requirements. Images are processed by the selected service; local text masking does not protect their image content.</p>
     <p>Deactivation stops this profile override and restores its native model selection. It preserves the setup, key and separate memory folder.</p>
     <button class="btn" type="button" @click="$store.requesty.recover()" :disabled="$store.requesty.busy">Deactivate profile setup</button>
     <p>Disabling or uninstalling stops the runtime override; it never rewrites another profile or shared preset.</p>

@@ -1,4 +1,4 @@
-"""Lifecycle is non-destructive: no dependencies, services or active model changes."""
+"""Scoped native adapters; no service or shared active model changes."""
 from dataclasses import asdict
 from pathlib import Path
 from usr.plugins.requesty.helpers.policy import Policy, PolicyError
@@ -9,6 +9,8 @@ def install(**kwargs):
     from helpers.providers import reload_providers
     catalog.clear()
     reload_providers()
+    from usr.plugins.requesty.helpers.inherited_bridge import manage
+    return manage(Path(__file__).parent)
 
 
 def pre_update(**kwargs):
@@ -16,11 +18,17 @@ def pre_update(**kwargs):
 
 
 def uninstall(**kwargs):
-    # No provider files outside this plugin, no services or installed dependencies.
+    # Remove only owned native adapters; no services or installed dependencies.
     # Profile overrides stop through framework removal. Shared presets and
     # selections are never rewritten; legacy presets require explicit migration.
     catalog.clear()
     result = {"status": "ok", "note": "Shared presets, keys and profile data preserved."}
+    import importlib.util
+    source=Path(__file__).parent/'helpers'/'inherited_bridge.py'
+    if source.exists():
+        spec=importlib.util.spec_from_file_location('_rpg_inherited_bridge',source)
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        result.update(module.manage(Path(__file__).parent,remove=True))
     # Remove only the plugin-owned recovery journal. The plugin directory
     # itself must stay intact: the framework's delete_plugin() removes the
     # plugin folder after this hook returns and fails with FileNotFoundError

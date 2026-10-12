@@ -3,6 +3,26 @@ from copy import deepcopy
 from usr.plugins.requesty.helpers.policy import Policy, PolicyError, ENDPOINTS
 from usr.plugins.requesty.helpers import catalog
 from usr.plugins.requesty.helpers import scope
+from urllib.parse import urlparse
+from usr.plugins.requesty.helpers import local_models
+
+
+def local_kwargs(wrapper, overrides):
+    """Only explicitly local Ollama routes; local provider labels alone are insufficient."""
+    import models
+    options = models._merge_litellm_call_kwargs(wrapper.kwargs, overrides)
+    provider = str(getattr(wrapper.a0_model_conf, "provider", wrapper.provider)).lower()
+    endpoint = options.get("api_base") or getattr(wrapper.a0_model_conf, "api_base", "")
+    parsed = urlparse(str(endpoint))
+    forbidden = {"base_url", "model", "custom_llm_provider", "fallbacks", "model_list", "router",
+                 "client", "aclient", "http_client", "extra_body", "extra_headers", "headers", "proxy"}
+    if provider not in {"ollama", "ollama_chat"} or parsed.scheme not in {"http", "https"} or parsed.hostname not in {
+        "localhost", "127.0.0.1", "::1", "host.docker.internal", "ollama"
+    } or parsed.username or parsed.password or forbidden.intersection(options):
+        raise PolicyError("Protected presets require a local Ollama endpoint or the profile's Requesty route.")
+    try:local_models.confirm(endpoint,wrapper.model_name.split('/',1)[-1],options.get('runner'))
+    except ValueError as error:raise PolicyError(str(error)) from None
+    return options
 
 
 def settings(owner):
@@ -31,8 +51,7 @@ def guarded_kwargs(wrapper, overrides):
     if not getattr(wrapper, "_requesty_test", False):
         setup = scope.read(owner, "setup.json")
         slot = getattr(wrapper, "_requesty_slot", None)
-        identifier = wrapper.model_name.removeprefix("openai/")
-        if not setup or not setup.get("active") or setup.get("models", {}).get(slot, {}).get("name") != identifier:
+        if not setup or not setup.get("active"):
             raise PolicyError("The owning profile setup changed or is inactive. Rebuild the model before requesting.")
     policy = settings(owner)
     effective = models._merge_litellm_call_kwargs(wrapper.kwargs, overrides)
@@ -53,12 +72,17 @@ def guarded_kwargs(wrapper, overrides):
                "responses_state", "responses_input_items", "previous_response_id"}
     if set(effective) - allowed:
         raise PolicyError("Unsupported Requesty parameter. Remove custom parameters from the model preset.")
+    dropping=effective.get('additional_drop_params',[])
+    sampling={'temperature','top_p','seed','stop','presence_penalty','frequency_penalty','logit_bias','logprobs','top_logprobs','reasoning_effort','parallel_tool_calls'}
+    if not isinstance(dropping,list) or any(item not in sampling for item in dropping):
+        raise PolicyError('Only sampling parameters may be dropped. Model, routing, authentication, message and output-limit parameters must remain intact.')
     if str(effective.get("a0_api_mode", "chat")).lower() != "chat":
         raise PolicyError("This Requesty version supports Chat Completions only.")
     base = effective.get("api_base", "")
     if not isinstance(base, str) or base.rstrip("/") not in ENDPOINTS.values():
         raise PolicyError("Requesty API base must be a documented Requesty endpoint.")
-    # Region is plugin-owned; user slot defaults do not select the effective router.
+    if base.rstrip('/') != policy.endpoint:
+        raise PolicyError('The selected Requesty route conflicts with the owning profile region. Correct the preset endpoint.')
     effective["api_base"] = policy.endpoint
     raw = scope.key(owner)
     key = effective.get("api_key") or raw
@@ -80,6 +104,33 @@ def guarded_kwargs(wrapper, overrides):
 
 def guard_function(data):
     wrapper = data["args"][0]
+    from usr.plugins.requesty.helpers.call_context import tool_agent, owner as inherited_owner
+    active_agent = tool_agent.get()
+    if active_agent is not None and getattr(wrapper, "_requesty_scope", None) is None:
+        owner = inherited_owner(active_agent)
+        setup = scope.read(owner, "setup.json")
+        if setup and setup.get("active") and scope.enabled(owner):
+            # Native Vision wrappers can be shared by the framework cache.
+            # Validate a per-call copy; never attach one chat's owner to it.
+            wrapper = wrapper.model_copy(deep=True)
+            wrapper._requesty_scope = owner
+            wrapper._requesty_slot = "vision"
+            wrapper._requesty_policy_bound = True
+    policy_bound = getattr(wrapper, "_requesty_policy_bound", False)
+    if policy_bound and not is_requesty(wrapper):
+        names = {"system_message", "user_message", "messages", "response_callback", "reasoning_callback",
+                 "tokens_callback", "rate_limiter_callback", "explicit_caching"}
+        original = data.get("kwargs", {})
+        conf_provider = str(getattr(wrapper.a0_model_conf, "provider", wrapper.provider)).lower()
+        if conf_provider not in {"ollama", "ollama_chat"}:
+            raise PolicyError("This preset bypasses Requesty. Select a Requesty or local model preset.")
+        owner = wrapper._requesty_scope
+        setup = scope.read(owner, "setup.json")
+        if not setup or not setup.get("active") or not scope.enabled(owner):
+            raise PolicyError("The owning profile setup changed; rebuild the model.")
+        checked = local_kwargs(wrapper, {k:v for k,v in original.items() if k not in names})
+        data["kwargs"] = {**checked, **{k:v for k,v in original.items() if k in names}}
+        return
     if is_requesty(wrapper):
         # Function arguments are not provider transport kwargs. In particular,
         # messages and callbacks must never be merged into a request-options body.
@@ -89,20 +140,61 @@ def guard_function(data):
         method_args = {k: v for k, v in original.items() if k in names}
         transport_args = {k: v for k, v in original.items() if k not in names}
         data["kwargs"] = {**guarded_kwargs(wrapper, transport_args), **method_args}
+        def has_image(value):
+            if isinstance(value,dict):
+                return value.get("type") in {"image_url","input_image","image"} or any(has_image(v) for v in value.values())
+            if isinstance(value,list):return any(has_image(v) for v in value)
+            if hasattr(value,"content"):return has_image(value.content)
+            return False
+        if has_image(method_args.get("messages", [])) or any(has_image(v) for v in data["args"][1:4]):
+            checked=data["kwargs"]
+            metadata=catalog.fetch(checked["api_base"],checked["api_key"]).get(wrapper.model_name.removeprefix("openai/"),{})
+            if metadata.get("supports_vision") is not True:
+                raise PolicyError("This Requesty model does not have verified image support. Select an approved Vision model.")
 
 
 def wrap_agent_result(data, agent=None, slot=None):
-    owner = scope.from_agent(agent) if agent is not None else getattr(data.get("result"), "_requesty_scope", None)
+    from usr.plugins.requesty.helpers.call_context import owner as inherited_owner
+    owner = inherited_owner(agent) if agent is not None else getattr(data.get("result"), "_requesty_scope", None)
     setup = scope.read(owner, "setup.json") if owner else None
     if agent is not None and setup and setup.get("active") and scope.enabled(owner):
         import models
         from usr.plugins.requesty.helpers.wrapper import GuardedRequestyWrapper
-        conf = setup["models"][slot]
+        # Native chat/browser presets are actual selections, not hints to ignore.
+        selected = data.get("result")
+        override = agent.context.get_data("chat_model_override")
+        browser_selected = agent.context.get_data("_browser_model_active")
+        if selected is not None and (override or browser_selected):
+            provider = str(getattr(selected.a0_model_conf, "provider", selected.provider)).lower()
+            if provider in {"ollama", "ollama_chat"}:
+                from usr.plugins.requesty.helpers.wrapper import GuardedLocalWrapper
+                prefix, name = selected.model_name.split("/",1)
+                local = GuardedLocalWrapper(model=name,provider=prefix,model_config=deepcopy(selected.a0_model_conf), **deepcopy(selected.kwargs))
+                local._requesty_scope = owner
+                local._requesty_policy_bound = True
+                local_kwargs(local,{})
+                data["result"] = local
+                return
+            if not is_requesty(selected):
+                raise PolicyError("This preset bypasses Requesty. Select a Requesty or local model preset.")
+            conf = {"provider":"requesty_guarded", "name":selected.model_name.removeprefix("openai/"),
+                    "kwargs":deepcopy(selected.kwargs), "vision":bool(selected.a0_model_conf.vision)}
+        else:
+            conf = setup["models"][slot]
+        configuration = deepcopy(conf)
+        options = configuration.pop("kwargs", {})
+        options = models.ModelConfig(type=models.ModelType.CHAT, **configuration).build_kwargs() | options
+        key = scope.key(owner)
+        if options.get("api_key") not in (None,"","None","NA",key):
+            raise PolicyError("The preset uses a credential from another scope.")
+        if options.get("api_base") and str(options["api_base"]).rstrip("/") != settings(owner).endpoint:
+            raise PolicyError("The preset route conflicts with this profile's Requesty region.")
+        options.update(api_base=settings(owner).endpoint,api_key=key)
         wrapper = GuardedRequestyWrapper(model=conf["name"], provider="openai",
-            model_config=models.ModelConfig(type=models.ModelType.CHAT, **deepcopy(conf)),
-            api_base=settings(owner).endpoint, api_key=scope.key(owner))
+            model_config=models.ModelConfig(type=models.ModelType.CHAT, **deepcopy(conf)), **options)
         wrapper._requesty_scope = owner
         wrapper._requesty_slot = slot
+        wrapper._requesty_policy_bound = True
         data["result"] = wrapper
         return
     wrapper = data.get("result")

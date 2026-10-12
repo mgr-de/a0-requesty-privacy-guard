@@ -11,13 +11,13 @@ class RequestyMemorySafety(Extension):
         if name not in ("_memory", "_model_config") or agent is None or not isinstance(data.get("result"), dict):
             return
         from usr.plugins.requesty.helpers import scope
-        owner = scope.from_agent(agent)
+        from usr.plugins.requesty.helpers.call_context import owner as inherited_owner
+        owner = inherited_owner(agent)
         setup = scope.read(owner, "setup.json")
         active = bool(setup and setup.get("active") and scope.enabled(owner))
         if name == "_model_config":
-            # The native switcher always allows overrides (its configuration
-            # flag is ignored). Suspend the owning chat's selection explicitly,
-            # keeping it in context data for persistence and recovery.
+            # Restore only legacy suspended selections when protection ends.
+            # Active native choices remain selected and are checked at calls.
             from usr.plugins.requesty.helpers.chat_override import reconcile
             reconcile(agent, owner, active)
         if not active:
@@ -27,7 +27,7 @@ class RequestyMemorySafety(Extension):
         # the cached or saved Memory configuration shared with other agents.
         safe = deepcopy(data["result"])
         if name == "_model_config":
-            safe["vision_model"] = {}
+            # Preserve an explicit sidecar. Its actual call is policy-checked.
             data["result"] = safe
             return
         safe["memory_memorize_consolidation"] = False

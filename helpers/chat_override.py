@@ -11,11 +11,9 @@ def reconcile(agent, owner, active):
     key = backup_key(owner)
     current = context.get_data("chat_model_override")
     saved = context.get_data(key)
-    if active:
-        if isinstance(current, dict) and current:
-            context.set_data(key, deepcopy(current))
-            context.set_data("chat_model_override", None)
-    elif isinstance(saved, dict) and saved:
+    # Current versions validate selections instead of silently suspending them.
+    # Restore a selection suspended by 0.3.x when no newer selection exists.
+    if not active and isinstance(saved, dict) and saved:
         # A newer native selection takes precedence over the suspended choice.
         if not current:
             context.set_data("chat_model_override", deepcopy(saved))

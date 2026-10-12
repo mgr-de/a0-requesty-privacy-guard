@@ -1,9 +1,13 @@
 <p align="center"><img src="assets/icon.svg" alt="Requesty Privacy Guard" width="128" height="128"></p>
 # Requesty for Agent Zero 2.13
 
-Version 0.3.1. Privacy policy, credentials and model setup belong to an explicit agent profile, optionally within a project. Shared model presets and global API keys are never written by setup or deactivation.
+Version 0.4.0. Privacy policy, credentials and model setup belong to an explicit agent profile, optionally within a project. Shared model presets and global API keys are never written by setup or deactivation.
 
-An active profile setup temporarily suspends an existing chat model selection, preserving it in that chat's context data. Deactivation restores it unless a newer native selection already exists. This prevents an old chat preset from blocking memory initialization or bringing back an unguarded Vision sidecar. Reopening settings restores the saved setup name and model choices; replacing an active setup requires activating the newly tested replacement.
+An active setup supplies default Main and Utility models. Explicit native presets remain selected and must meet the profile policy: external models use Requesty, while explicitly local Ollama endpoints are allowed. Incompatible selections are rejected without silently replacing them. Main, Utility, Browser and separate Vision calls are checked; image support must be confirmed in the Requesty catalog. Subordinate agents inherit the active root profile's minimum policy during native tool calls. Independent chats retain their own settings.
+
+Ollama is optional, never a prerequisite. The plugin works with approved Requesty models alone. Local text filtering and sentence-transformers embeddings do not need a local chat LLM; optional OCR needs an existing Tesseract installation.
+
+Selections suspended by 0.3.x remain backed up until deactivation; a newer selection is preserved. Reopening settings restores saved setup and model choices. See [the current standardschutz plan](docs/STANDARD-AND-HARDENED-PLAN.md) for boundaries and the optional future hardened mode. The standard plugins do not restrict every browser, form, upload or third-party client.
 
 ## Configure one profile
 
@@ -13,7 +17,7 @@ An active profile setup temporarily suspends an existing chat model selection, p
 4. Choose region, model-region restriction, no provider retention and no provider training. **Save privacy requirements** keeps the dialog open.
 5. Load the authenticated catalog and select Conversation (Main) and Helper (Utility). Excluded models have reasons. Unknown metadata cannot satisfy a required restriction.
 6. Run the example test. It sends only a fixed synthetic prompt, at most two requests of 256 output tokens each. API costs may apply. The ticket is valid for ten minutes and bound to this profile, key, policy and model selection.
-7. Create the named profile setup, then explicitly **Activate for this profile**. Activation overrides Main and Utility in all chats of that profile and project combination. It does not create or activate a shared preset. Clear existing per-chat model overrides while using the profile setup. Deactivate here to restore the native model selection.
+7. Create the named profile setup, then explicitly **Activate for this profile**. Activation supplies Main and Utility defaults in chats of that profile/project combination. Native presets may choose other approved Requesty models or local Ollama models. A direct external provider or conflicting transport is rejected; correct the selection rather than weakening requirements. Activation does not create or activate a shared preset.
 
 The initial policy is EU router, EU model processing, no provider retention and no provider training. Empty catalogs never relax requirements automatically. Changing profiles clears unsaved credentials, selections and test results, and late responses from the previous profile are ignored. A saved key is not a verified connection; a successful synthetic test is not a privacy audit.
 
@@ -39,7 +43,7 @@ See [the integration test findings](docs/PII-TEST-RESULTS.md) for actual outgoin
 
 While active, a profile uses a separate memory folder identified by its project/profile combination. Existing shared memory is preserved and is not copied automatically. Automatic memory updates append entries without consolidating or replacing old entries. Saved native Memory settings are unchanged. Other profiles keep their own settings and indexes. If Local Privacy Guard is also active, its profile/model-specific memory folder takes precedence. Embedding models remain under native configuration or Local Privacy Guard.
 
-Main and Utility wrappers guard unified calls and LangChain invoke/stream paths. Existing wrapper instances recheck their owning profile at request time and stop after setup changes or deactivation. A separate Vision sidecar is blocked while the setup is active; native Main image support depends on catalog metadata. Catalog caches are separated by router and a hash of the profile key, and return copies.
+Main and Utility wrappers guard unified calls and LangChain invoke/stream paths. Existing wrapper instances recheck their owning profile at request time and stop after deactivation. An alternate model remains usable only when current catalog metadata meets the active policy. Native tool Vision calls use a task-local owner; direct external sidecars are rejected. Catalog caches are separated by router and a hash of the profile key, and return copies. Both plugins must remain installed and enabled for their respective checks; this is not protection against deliberate plugin removal or arbitrary raw model clients.
 
 ## Deactivation, removal and migration
 
@@ -59,3 +63,7 @@ cd /a0
 ```
 
 See [UI review](docs/UI-REVIEW.md), [profile scope review](docs/PROFILE-SCOPE-REVIEW.md) and [test strategy](docs/TESTSTRATEGY.md).
+
+## Current standard-protection validation
+
+See [1.4 / 0.4 test results](docs/STANDARD-TEST-RESULTS.md) for native routes, multilingual sessions, secrets, inherited subordinate policy, images and the partly manual form test. Historical comparison reports describe earlier code. Installation/update hooks create owned native adapters for inherited policies, with ownership journals outside the plugin ZIP; restart Agent Zero after installation/update. Independent other-profile chats are unaffected. Ollama is optional and checked for actual local weights only when selected; Requesty-only use needs no Ollama server. Full mappings contain local original values; malformed/truncated model tokens cannot reliably be restored, and truncated native chat titles use a neutral caption.
