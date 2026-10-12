@@ -21,8 +21,11 @@ class ModelStatus(ApiHandler):
             return result
         from usr.plugins.requesty.helpers.call_context import owner as inherited_owner
         owner = inherited_owner(context.agent0)
+        from usr.plugins.requesty.helpers.instance import manager
+        native_instance=manager()
+        native_mode=native_instance is not None and native_instance.read('setup.json',{}).get('native_presets')
         setup = scope.read(owner, "setup.json")
-        if not setup or not setup.get("active") or not scope.enabled(owner):
+        if ((not setup or not setup.get("active")) and not native_mode) or not scope.enabled(owner):
             return result
         try:
             scope.key(owner)
@@ -30,12 +33,13 @@ class ModelStatus(ApiHandler):
         except PolicyError:
             has_key = False
         config = dict(result["config"])
-        selected = context.get_data("chat_model_override") or context.get_data("_browser_model_active")
-        if not selected:
-            config.update(chat_model=setup["models"]["chat"], utility_model=setup["models"]["utility"])
-        local_selection=False
         from usr.plugins.requesty.helpers.instance import manager
         instance=manager()
+        native=(instance is not None and instance.read('setup.json',{}).get('native_presets')) or bool(setup and setup.get('native_presets'))
+        selected = context.get_data("chat_model_override") or context.get_data("_browser_model_active")
+        if not selected and not native:
+            config.update(chat_model=setup["models"]["chat"], utility_model=setup["models"]["utility"])
+        local_selection=False
         if selected or instance is not None:
             try:
                 from usr.plugins.requesty.helpers.runtime_guard import guarded_kwargs,local_kwargs,is_requesty
@@ -59,4 +63,5 @@ class ModelStatus(ApiHandler):
             for slot,section in [('main','chat_model'),('utility','utility_model'),('vision','vision_model'),('embedding','embedding_model')]}
         result['model_route']=config.get('chat_model',{}).get('api_base','')
         result['instance_protection']=instance is not None
+        result['native_presets']=bool(native)
         return result

@@ -8,8 +8,11 @@ class Presets(ApiHandler):
         from usr.plugins.requesty.helpers.call_context import owner
         from usr.plugins.requesty.helpers import scope
         identity=owner(context.agent0)
+        from usr.plugins.requesty.helpers.instance import manager
+        instance=manager()
+        native=instance is not None and instance.read('setup.json',{}).get('native_presets')
         setup=scope.read(identity,'setup.json',{})
-        if not setup.get('active') or not scope.enabled(identity):return {'ok':True,'protected':False,'presets':[]}
+        if (not setup.get('active') and not native) or not scope.enabled(identity):return {'ok':True,'protected':False,'presets':[]}
         from plugins._model_config.helpers import model_config as mc
         from usr.plugins.requesty.helpers.preset_status import evaluate
         from helpers import projects
@@ -29,5 +32,6 @@ class Presets(ApiHandler):
         scoped['models']={label:base.get(section,{}) for label,section in [('main','chat_model'),('utility','utility_model'),('embedding','embedding_model')]}
         # Return identities only: transport kwargs may contain authentication.
         scoped['models']={label:{key:conf.get(key) for key in ('provider','name')} for label,conf in scoped['models'].items()}
-        return {'ok':True,'protected':True,'instance_protection':manager() is not None,'scoped':scoped,'presets':[evaluate(preset,base,identity,local,policy_owner) for preset in presets],
+        native=(manager() is not None and manager().read('setup.json',{}).get('native_presets')) or setup.get('native_presets')
+        return {'ok':True,'protected':True,'instance_protection':manager() is not None,'native_presets':bool(native),'scoped':None if native else scoped,'presets':[evaluate(preset,base,identity,local,policy_owner) for preset in presets],
                 'basis':'Effective model configuration and current Requesty catalog; evaluated again before every call.'}

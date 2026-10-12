@@ -15,7 +15,7 @@ export function installPresetDisplay(store,currentContext,notify) {
             let note=panel.querySelector('.requesty-instance-preset-note');
             if(!state?.instanceActive){note?.remove();continue;}
             if(!note){note=document.createElement('p');note.className='requesty-instance-preset-note';panel.append(note);}
-            const text='Privacy Agent aktiv: Die effektiven Modelle kommen aus der gemeinsamen Privacy-Einrichtung oder einem zulässigen Profilsetup. Die globalen Presets allein bestimmen diese Route nicht. Im Chat-Menü steht die geprüfte Privacy-Auswahl; unzulässige Chat-Presets bleiben gesperrt.';
+            const text=state.nativePresets ? 'Privacy Agent aktiv: Dieses native Preset bestimmt die Modelle. Main, Utility und Vision verwenden Requesty; Embeddings bleiben lokal. Modelle können hier bei aktivem Schutz geändert werden.' : 'Privacy Agent aktiv: Die effektiven Modelle kommen aus der gemeinsamen Privacy-Einrichtung oder einem zulässigen Profilsetup. Die globalen Presets allein bestimmen diese Route nicht. Im Chat-Menü steht die geprüfte Privacy-Auswahl; unzulässige Chat-Presets bleiben gesperrt.';
             if(note.textContent!==text)note.textContent=text;
         }
         for(const menu of document.querySelectorAll('.model-switcher-dropdown')){
@@ -63,6 +63,6 @@ export function installPresetDisplay(store,currentContext,notify) {
 
 export function updatePresetDisplay(store,contextId,currentContext,result){
     if(contextId!==currentContext())return;
-    store._requestyPresetStatus=result?.protected ? {contextId,items:result.presets||[],scoped:result.scoped||null,instanceActive:!!result.instance_protection} : null;
+    store._requestyPresetStatus=result?.protected ? {contextId,items:result.presets||[],scoped:result.scoped||null,instanceActive:!!result.instance_protection,nativePresets:!!result.native_presets} : null;
     store._requestyAnnotatePresets?.();
 }

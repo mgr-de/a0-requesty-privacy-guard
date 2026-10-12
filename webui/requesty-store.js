@@ -23,7 +23,7 @@ export const store = createStore("requesty", {
         } catch(e) {if(epoch===this.epoch)this.error=e.message;}
         finally {if(epoch===this.epoch)this.busy=false;}
     },
-    instanceActive:false, models: [], busy: false, search: "", showRejected: false, showProviders: false,
+    instanceActive:false, nativePresets:false, models: [], busy: false, search: "", showRejected: false, showProviders: false,
     main: "", utility: "", presetName: "Requesty Private", key: "", hasKey: false,
     keyKnown: false, catalogPolicy: "", epoch: 0, ticket: "", testState: "",
     error: "", message: "", createdPreset: "", createdState: "", catalogLoaded: false,
@@ -58,6 +58,7 @@ export const store = createStore("requesty", {
             if (!result.ok) throw new Error(result.error || "Could not read profile key status.");
             this.hasKey = !!result.has_key; this.createdPreset = result.setup || ""; this.active = !!result.active;
             this.instanceActive=!!result.instance_protection;
+            this.nativePresets=!!result.native_presets;
             this.savedMain = result.main || ""; this.savedUtility = result.utility || "";
             this.main = this.savedMain; this.utility = this.savedUtility;
             this.presetName = this.createdPreset || "Requesty Private";
