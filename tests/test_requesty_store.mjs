@@ -18,6 +18,15 @@ function setup(api = async () => ({ok:true,models:[model],ticket:'test-ticket',p
     return {store,calls};
 }
 function deferred() {let resolve; const promise = new Promise(r=>resolve=r); return {promise,resolve};}
+test('profile shortcut changes only the editor scope and respects native loading',async()=>{
+    const {store,calls}=setup();let changes=0;
+    const context={agentProfileKey:'',agentProfiles:[{key:'agent0'}],settings:{region:'eu'},onScopeChanged:async()=>{changes++;}};
+    await store.configureProfile(context,'missing');assert.equal(changes,0);
+    context.isLoading=true;await store.configureProfile(context,'agent0');assert.equal(changes,0);
+    context.isLoading=false;await store.configureProfile(context,'agent0');
+    assert.equal(context.agentProfileKey,'agent0');assert.equal(changes,1);
+    assert.deepEqual(context.settings,{region:'eu'});assert.equal(calls.length,0);
+});
 test('reopening restores saved model selections and profile setup name', async()=>{
     const {store}=setup(async()=>({ok:true,has_key:true,requirements_saved:true,setup:'Saved setup',
         main:'saved/main',utility:'saved/utility',active:true}));

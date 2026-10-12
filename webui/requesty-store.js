@@ -10,6 +10,13 @@ export const store = createStore("requesty", {
     catalogTime: "", testedAt: 0, now: 0, timer: null,
     scope: null, active: false, requirementsSaved: false, savedMain: "", savedUtility: "",
     scopePayload() { return this.scope || {}; },
+    chatProfile() { return globalThis.Alpine?.store('chats')?.selectedContext?.agent_profile || ''; },
+    async configureProfile(context, profile) {
+        if (this.busy || context.isLoading || context.isSaving || !profile) return;
+        if (!(context.agentProfiles || []).some(item => item.key === profile)) return;
+        context.agentProfileKey = profile;
+        await context.onScopeChanged();
+    },
     setScope(context) {
         const next = {project_name:context.projectName || "",agent_profile:context.agentProfileKey || ""};
         if (JSON.stringify(next) !== JSON.stringify(this.scope)) this.onOpen(context);
@@ -79,7 +86,7 @@ export const store = createStore("requesty", {
     nextStep(config, unsaved = false) {
         if (!this.scope?.agent_profile) return "Choose one agent profile in the settings toolbar first.";
         if (this.busy) return "Working… Please wait.";
-        if (this.active) return "This profile uses its Requesty setup. Other profiles keep their own models and keys.";
+        if (this.active) return "This profile uses its Requesty setup. To change models, load the catalog below. Other profiles keep their own models and keys.";
         if (config.require_requesty_zdr) return "Requests are blocked: Requesty organization ZDR cannot currently be verified.";
         if (!this.keyKnown) return "Saved key status is unknown. Reopen settings to retry.";
         if (!this.hasKey) return "Save your Requesty API key to start.";

@@ -10,7 +10,11 @@
 <div class="privacy-settings" x-init="$store.requesty.onOpen(context)" x-destroy="$store.requesty.cleanup()" x-effect="$store.requesty.setScope(context)" :aria-busy="$store.requesty.busy">
   <h2 class="section-title">Private model setup</h2>
   <aside class="privacy-note"><strong>One agent profile at a time.</strong><p>Choose an Agent profile in the toolbar. Keys, privacy rules, model setup and memory storage belong to this selected profile. Global presets and keys are never changed.</p><p x-text="context.agentProfileKey ? 'Selected profile: ' + context.agentProfileKey : 'No profile selected — setup actions are unavailable.'"></p></aside>
-  <fieldset :disabled="!context.agentProfileKey"><legend>Profile setup</legend>
+  <div x-show="!context.agentProfileKey">
+    <p>Requesty is configured for one agent profile. Choose an Agent profile above to edit its saved setup.</p>
+    <button class="btn" type="button" x-show="$store.requesty.chatProfile()" @click="$store.requesty.configureProfile(context, $store.requesty.chatProfile())" :disabled="$store.requesty.busy || context.isLoading || context.isSaving">Configure current chat profile</button>
+  </div>
+  <fieldset x-show="context.agentProfileKey" :disabled="!context.agentProfileKey"><legend>Profile setup</legend>
   <p>Choose where supported Requesty model requests are processed and which provider data rules they must meet.</p>
   <aside class="privacy-note">
     <strong>These models run outside your device.</strong>
@@ -60,7 +64,7 @@
   <section class="privacy-card" aria-labelledby="requesty-models-title">
     <h3 id="requesty-models-title" class="section-title">3. Choose your models</h3>
     <button class="btn" type="button" @click="$store.requesty.refresh(config)" :disabled="$store.requesty.busy || !$store.requesty.hasKey || context.hasUnsavedChanges">Check connection and load models</button>
-    <p class="field-description privacy-help">Save a key and the privacy requirements first. Only models that meet the requirements can be selected.</p>
+    <p class="field-description privacy-help" x-text="$store.requesty.hasKey &amp;&amp; $store.requesty.requirementsSaved ? 'Load the catalog to edit your saved model choices. Loading the catalog makes no LLM requests.' : 'Save a key and the privacy requirements first. Only models that meet the requirements can be selected.'"></p>
     <p x-show="!$store.requesty.catalogLoaded">No model catalog loaded for these settings yet.</p>
     <p class="privacy-note" x-show="$store.requesty.catalogLoaded && !$store.requesty.catalogCurrent(config)">Requirements changed. Reload the catalog before testing.</p>
     <p x-show="$store.requesty.catalogLoaded" x-text="'Catalog loaded: ' + $store.requesty.catalogTime + '. Source: Requesty authenticated catalog. Runtime checks refresh metadata separately.'"></p>
@@ -68,9 +72,9 @@
     <fieldset :disabled="$store.requesty.busy || !$store.requesty.catalogCurrent(config) || context.hasUnsavedChanges">
       <legend>Model roles</legend>
       <div class="field"><div class="field-label"><label class="field-title" for="requesty-main">Conversation model (Main)</label><p id="requesty-main-help" class="field-description privacy-help">Handles your conversation and tasks.</p>
-      </div><div class="field-control"><select id="requesty-main" aria-describedby="requesty-main-help" x-model="$store.requesty.main" @change="$store.requesty.invalidateTest()"><option value="">Choose a conversation model</option><template x-for="model in $store.requesty.allowed()" :key="model.id"><option :value="model.id" :selected="model.id === $store.requesty.main" x-text="model.id"></option></template></select></div></div>
+      </div><div class="field-control"><select id="requesty-main" aria-describedby="requesty-main-help" x-model="$store.requesty.main" @change="$store.requesty.invalidateTest()"><option value="">Choose a conversation model</option><template x-if="$store.requesty.savedMain &amp;&amp; !$store.requesty.catalogCurrent(config)"><option :value="$store.requesty.savedMain" :selected="$store.requesty.main === $store.requesty.savedMain" x-text="$store.requesty.savedMain + ' (saved)'"></option></template><template x-for="model in $store.requesty.allowed()" :key="model.id"><option :value="model.id" :selected="model.id === $store.requesty.main" x-text="model.id"></option></template></select></div></div>
       <div class="field"><div class="field-label"><label class="field-title" for="requesty-utility">Helper model (Utility)</label><p id="requesty-utility-help" class="field-description privacy-help">Handles background tasks and memory processing. It may receive conversation or recalled memory text.</p>
-      </div><div class="field-control"><select id="requesty-utility" aria-describedby="requesty-utility-help" x-model="$store.requesty.utility" @change="$store.requesty.invalidateTest()"><option value="">Choose a helper model</option><template x-for="model in $store.requesty.allowed()" :key="model.id"><option :value="model.id" :selected="model.id === $store.requesty.utility" x-text="model.id"></option></template></select></div></div>
+      </div><div class="field-control"><select id="requesty-utility" aria-describedby="requesty-utility-help" x-model="$store.requesty.utility" @change="$store.requesty.invalidateTest()"><option value="">Choose a helper model</option><template x-if="$store.requesty.savedUtility &amp;&amp; !$store.requesty.catalogCurrent(config)"><option :value="$store.requesty.savedUtility" :selected="$store.requesty.utility === $store.requesty.savedUtility" x-text="$store.requesty.savedUtility + ' (saved)'"></option></template><template x-for="model in $store.requesty.allowed()" :key="model.id"><option :value="model.id" :selected="model.id === $store.requesty.utility" x-text="model.id"></option></template></select></div></div>
     </fieldset>
     <details><summary>Browse catalog and exclusion reasons</summary>
       <div class="field"><div class="field-label"><label class="field-title" for="requesty-search">Search model names</label></div><div class="field-control"><input type="search" id="requesty-search" x-model="$store.requesty.search"></div></div>
@@ -90,10 +94,10 @@
     <p x-show="$store.requesty.testCurrent(config)">Model test passed for this selection. It expires after 10 minutes and does not independently verify provider privacy claims.</p>
     <div class="field"><div class="field-label"><label class="field-title" for="requesty-preset">Name for this profile model setup</label></div><div class="field-control"><input type="text" id="requesty-preset" x-model="$store.requesty.presetName" :disabled="$store.requesty.busy" maxlength="80"></div></div>
     <button class="btn" type="button" @click="$store.requesty.createPreset(config, context.hasUnsavedChanges)" :disabled="$store.requesty.busy || context.hasUnsavedChanges || !$store.requesty.catalogCurrent(config) || !$store.requesty.testCurrent(config) || !$store.requesty.presetName.trim()">Create model setup</button>
-    <p>Creating a setup does not activate it. Activation supplies Main and Utility defaults for this profile. Other native presets remain usable when every model and route meets this profile's requirements; local Ollama models are allowed. An incompatible preset is rejected without changing your selection.</p>
+    <p>Creating a setup does not activate it. Activation supplies Main and Utility defaults for this profile. Other native presets remain usable when every model and route meets this profile's requirements; native local endpoints remain available. An incompatible preset blocks model calls without silently replacing your selection.</p>
     <p class="privacy-note" x-show="$store.requesty.createdPreset" x-text="'Created: ' + $store.requesty.createdPreset + ($store.requesty.active ? '. Active for this profile.' : '. Created, not activated.')"></p>
     <p x-show="$store.requesty.createdPreset" x-text="'Saved conversation model: ' + $store.requesty.savedMain + ' · Saved helper model: ' + $store.requesty.savedUtility"></p>
-    <p x-show="$store.requesty.active">Chat-specific model choices are temporarily suspended while this setup is active. They are preserved and apply again after deactivation. To change this setup, load the catalog, choose models, test and create the replacement.</p>
+    <p x-show="$store.requesty.active">Native preset selections remain selected and are checked against this profile's requirements. To change this setup, load the catalog, choose models, test and create the replacement.</p>
     <button class="btn" type="button" @click="$store.requesty.activate()" :disabled="$store.requesty.busy || !$store.requesty.createdPreset || $store.requesty.active">Activate for this profile</button>
   </section>
   <details class="privacy-card"><summary>Advanced: memory, images and recovery</summary>
