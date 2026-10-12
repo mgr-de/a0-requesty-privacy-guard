@@ -54,8 +54,9 @@ class Policy:
             return ["Model metadata is unavailable."]
         reasons = []
         identifier = model.get("id")
-        if not isinstance(identifier, str) or not identifier or identifier.startswith("policy/"):
-            reasons.append("A concrete catalog model is required; routing policies are not verified.")
+        if (not isinstance(identifier, str) or not identifier or identifier.startswith("policy/")
+                or model.get("_requesty_catalog_kind") == "unverified_policy"):
+            reasons.append("Custom routing policy targets cannot be verified. Choose a catalog model or a verified managed policy.")
         if model.get("api") != "chat":
             reasons.append("A documented chat model is required.")
         if self.no_retention:
@@ -89,5 +90,7 @@ def parse_catalog(payload):
             raise PolicyError("Requesty returned an invalid model entry.")
         if model["id"] in result:
             raise PolicyError("Requesty returned duplicate model identities.")
-        result[model["id"]] = dict(model)
+        # Only the local catalog merger can set provenance markers.
+        result[model["id"]] = {key: value for key, value in model.items()
+                               if not key.startswith("_requesty_")}
     return result

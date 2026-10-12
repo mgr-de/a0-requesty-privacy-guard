@@ -28,13 +28,18 @@ class SyntheticEmbeddings(Embeddings):
 
 class FrameworkIntegration(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        for target, name, value in ((guard, "settings", Policy()), (plugins, "get_toggle_state", "enabled"),
-                                   (models, "get_api_key_raw", "synthetic-key"),
+        for target, name, value in ((guard, "settings", Policy()), (guard.scope, "enabled", True),
+                                   (guard.scope, "key", "synthetic-key"),
                                    (guard.catalog, "fetch", {IDENTIFIER: METADATA})):
             mock = patch.object(target, name, return_value=value)
             mock.start(); self.addCleanup(mock.stop)
-        self.wrapper = models.get_chat_model("requesty_guarded", IDENTIFIER,
-            model_config=models.ModelConfig(type=models.ModelType.CHAT, provider="requesty_guarded", name=IDENTIFIER))
+        from usr.plugins.requesty.helpers.wrapper import GuardedRequestyWrapper
+        self.wrapper = GuardedRequestyWrapper(provider="openai", model=IDENTIFIER,
+            model_config=models.ModelConfig(type=models.ModelType.CHAT, provider="requesty_guarded", name=IDENTIFIER),
+            api_base=Policy().endpoint, api_key="synthetic-key")
+
+        self.wrapper._requesty_scope = ("", "agent0")
+        self.wrapper._requesty_test = True
 
     async def test_real_discovered_hooks_block_before_transport(self):
         # Do not mock extension dispatch. This exercises discovery from installed plugin paths.

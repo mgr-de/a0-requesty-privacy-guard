@@ -18,3 +18,4 @@ recovery.json
 
 # Plugin toggle state (runtime, must not be published)
 .toggle-*
+inherited-bridge.json

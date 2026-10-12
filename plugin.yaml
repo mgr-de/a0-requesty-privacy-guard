@@ -1,8 +1,8 @@
 name: requesty
 title: Requesty
-description: Requesty models with verified provider privacy and regional routing controls.
-version: 0.1.3
+description: Requesty model setup with regional and provider data requirements checked against catalog metadata. Provider claims are not independently audited; Requesty organization retention remains unverified.
+version: 0.5.1
 settings_sections:
   - agent
-per_project_config: false
-per_agent_config: false
+per_project_config: true
+per_agent_config: true

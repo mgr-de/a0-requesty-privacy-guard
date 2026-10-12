@@ -1,4 +1,4 @@
-"""Lifecycle is non-destructive: no dependencies, services or active model changes."""
+"""Scoped native adapters; no service or shared active model changes."""
 from dataclasses import asdict
 from pathlib import Path
 from usr.plugins.requesty.helpers.policy import Policy, PolicyError
@@ -9,6 +9,8 @@ def install(**kwargs):
     from helpers.providers import reload_providers
     catalog.clear()
     reload_providers()
+    from usr.plugins.requesty.helpers.inherited_bridge import manage
+    return manage(Path(__file__).parent)
 
 
 def pre_update(**kwargs):
@@ -16,18 +18,20 @@ def pre_update(**kwargs):
 
 
 def uninstall(**kwargs):
-    # No provider files outside this plugin, no services or installed dependencies.
-    # API keys are shared user configuration and are kept. Presets created by this
-    # plugin reference the guarded provider and would crash model calls without it,
-    # so they are removed and their references repaired to Default here.
+    # Remove only owned native adapters; no services or installed dependencies.
+    # Profile overrides stop through framework removal. Shared presets and
+    # selections are never rewritten; legacy presets require explicit migration.
     catalog.clear()
-    result = {"status": "ok", "cleanup": None}
-    try:
-        from usr.plugins.requesty.helpers.cleanup import remove_guarded_presets
-        result["cleanup"] = remove_guarded_presets()
-    except Exception as exc:
-        result["status"] = "cleanup_unavailable"
-        result["note"] = f"automatic preset cleanup could not run: {exc}"
+    from usr.plugins.requesty.helpers.instance import manager
+    if manager() is not None:
+        raise ValueError('Deactivate Privacy Agent centrally before uninstalling a required component.')
+    result = {"status": "ok", "note": "Shared presets, keys and profile data preserved."}
+    import importlib.util
+    source=Path(__file__).parent/'helpers'/'inherited_bridge.py'
+    if source.exists():
+        spec=importlib.util.spec_from_file_location('_rpg_inherited_bridge',source)
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        result.update(module.manage(Path(__file__).parent,remove=True))
     # Remove only the plugin-owned recovery journal. The plugin directory
     # itself must stay intact: the framework's delete_plugin() removes the
     # plugin folder after this hook returns and fails with FileNotFoundError
@@ -43,8 +47,20 @@ def uninstall(**kwargs):
 
 
 def save_plugin_config(settings=None, project_name="", agent_profile="", **kwargs):
-    if project_name or agent_profile:
-        raise PolicyError("Requesty privacy settings are global in this version.")
+    from usr.plugins.requesty.helpers.scope import scope
+    scope(project_name, agent_profile)
     validated = asdict(Policy.parse(settings))
     catalog.clear()
     return validated
+
+
+def get_plugin_config(default=None, project_name="", agent_profile="", **kwargs):
+    # Do not inherit a legacy global policy into an unconfigured profile.
+    if not agent_profile:
+        return asdict(Policy())
+    from usr.plugins.requesty.helpers import scope
+    raw = scope.read(scope.scope(project_name or "", agent_profile), "config.json")
+    from usr.plugins.requesty.helpers.instance import manager
+    instance=manager()
+    if instance is not None:return instance.effective_policy(raw)
+    return asdict(Policy.parse(raw)) if raw is not None else asdict(Policy())

@@ -12,7 +12,7 @@ class CatalogTests(unittest.TestCase):
     def test_cache_identity_and_copy(self):
         requests = []
         def respond(request):
-            requests.append((str(request.url), request.headers["authorization"]))
+            requests.append((str(request.url), request.headers.get("authorization")))
             return httpx.Response(200, json={"object": "list", "data": [{"id": "test", "api": "chat"}]})
         transport = httpx.MockTransport(respond)
         result = catalog.fetch(ENDPOINTS["eu"], "synthetic-key", transport=transport)
@@ -20,7 +20,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(catalog.fetch(ENDPOINTS["eu"], "synthetic-key", transport=transport)["test"]["id"], "test")
         catalog.fetch(ENDPOINTS["us"], "synthetic-key", transport=transport)
         catalog.fetch(ENDPOINTS["eu"], "other-key", transport=transport)
-        self.assertEqual(len(requests), 3)
+        self.assertEqual(len(requests), 6)
 
     def test_errors_have_no_fallback_or_secret(self):
         for status in (302, 401, 403, 429, 500):
@@ -48,7 +48,33 @@ class CatalogTests(unittest.TestCase):
             catalog.fetch(ENDPOINTS["eu"], "synthetic-key", transport=transport)
         with patch.object(catalog.time, "monotonic", return_value=61):
             catalog.fetch(ENDPOINTS["eu"], "synthetic-key", transport=transport)
-        self.assertEqual(len(count), 2)
+        self.assertEqual(len(count), 4)
+
+    def test_managed_names_keep_metadata_and_custom_override_is_blocked(self):
+        from usr.plugins.requesty.helpers.policy import Policy
+        safe = {"api":"chat", "data_retention":False, "data_retention_days":0,
+                "data_used_for_training":False, "geolocation":"eu"}
+        def respond(request):
+            if request.url.path.endswith('/managed'):
+                self.assertNotIn('authorization', request.headers)
+                entries = [dict(safe,id=name,owned_by='system') for name in ('short','override','unknown')]
+                entries[-1]['geolocation']='global'
+            else:
+                self.assertEqual(request.headers['authorization'],'Bearer synthetic-key')
+                entries = [dict(safe,id='vendor/short'),dict(safe,id='policy/override')]
+            return httpx.Response(200,json={"object":"list","data":entries})
+        result=catalog.fetch(ENDPOINTS['eu'],'synthetic-key',transport=httpx.MockTransport(respond))
+        Policy().check(result['short']);Policy().check(result['vendor/short'])
+        for name in ('override','unknown','policy/override'):
+            with self.assertRaises(PolicyError):Policy().check(result[name])
+
+    def test_public_metadata_cannot_replace_an_authenticated_alias(self):
+        from usr.plugins.requesty.helpers.policy import Policy
+        safe={"id":"short","api":"chat","owned_by":"system","data_retention":False,
+              "data_used_for_training":False,"geolocation":"eu"}
+        result=catalog.fetch(ENDPOINTS['eu'],'synthetic-key',transport=httpx.MockTransport(
+            lambda request:httpx.Response(200,json={"object":"list","data":[safe]})))
+        with self.assertRaises(PolicyError):Policy().check(result['short'])
 
     def test_no_unapproved_endpoint(self):
         for endpoint in ("https://other.test", "http://router.eu.requesty.ai/v1", ENDPOINTS["eu"] + "?x=1"):

@@ -37,6 +37,27 @@ def fetch(endpoint, key, *, refresh=False, transport=None):
                     raise PolicyError("Requesty catalog exceeds the supported size.")
                 payload = response.json()
             models = parse_catalog(payload)
+            for identifier, entry in models.items():
+                if "/" not in identifier:
+                    entry["_requesty_catalog_kind"] = "unverified_policy"
+            # This public catalog is supplementary, never a fallback for a
+            # failed authenticated catalog. Do not infer aliases from suffixes.
+            with httpx.Client(timeout=10, follow_redirects=False, transport=transport) as client:
+                managed_response = client.get(endpoint + "/models/managed")
+                if managed_response.status_code == 200 and len(managed_response.content) <= 8 * 1024 * 1024:
+                    managed = parse_catalog(managed_response.json())
+                    for identifier, entry in managed.items():
+                        if "/" in identifier or entry.get("owned_by") != "system":
+                            continue
+                        # Organization policies take precedence in Requesty.
+                        # Never apply public metadata to such an override.
+                        if identifier in models:
+                            continue
+                        if "policy/" + identifier in models:
+                            models[identifier] = dict(models["policy/" + identifier], id=identifier,
+                                                      _requesty_catalog_kind="unverified_policy")
+                        else:
+                            models[identifier] = dict(entry, _requesty_catalog_kind="managed")
         except PolicyError:
             raise
         except Exception:

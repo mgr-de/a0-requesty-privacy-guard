@@ -1,3 +1,11 @@
+## Profile isolation regression coverage
+
+The current version requires explicit profile ownership. See [profile scope review](PROFILE-SCOPE-REVIEW.md) for the current acceptance criteria and validation results. Tests run inside an isolated Agent Zero v2.13 instance with actual native extension discovery. Two profiles are exercised independently, using temporary profile storage and synthetic model/catalog results. No paid network calls are required.
+
+The new coverage includes native settings display (which otherwise bypasses config hooks), profile-only model/key/policy setup, no shared preset writes, separate Memory folders, per-profile filters, ownership-bound validation tickets, stale replies, existing wrappers after deactivation/extension removal, chat gate credential status without exposing keys, and path containment. Legacy generation-safe preset backup tests remain for deliberate manual recovery helpers, which are no longer called by startup or uninstall.
+
+The following historical strategy describes earlier version behavior; global preset creation/cleanup and global credentials are superseded by the profile setup in the current version.
+
 # Test Strategy — Requesty Privacy Guard
 
 ## Scope
@@ -54,6 +62,14 @@ cd /path/to/repo && python -m pytest tests/ -q
 4. With a `recovery.json` present, uninstall → journal gone, no error.
 5. Re-install → plugin works, no stale recovery state replayed.
 
+## Settings redesign 0.2.0
+
+Run `node --test tests/test_requesty_store.mjs tests/test_model_gate_context.mjs`. New tests cover changed policies/models, credential replacement, test expiry, failed saves, catalog failures, excluded/search states and late results after closing/reopening. Inline requirement saving uses the native settings API and acknowledges only successful writes without closing the dialog.
+
+The full Python suite was run against the real Agent Zero v2.13 framework in a fresh isolated container. Browser integration checks cover both settings dialogs and native requirement saving. A separate UI fixture with simulated external responses exercises catalog, selection, test, preset creation, empty and error states without costs or real credentials. It does not prove live model compatibility or provider data practices.
+
+At a 390px viewport width and equivalent 200% zoom, verify control reachability, wrapped text and keyboard focus. After preset creation the next step must name the created preset for selection in a separate test chat, rather than suggesting it is already active.
+
 ## Known limitations
 
 - The framework-dependent test files (`test_catalog.py`, `test_configuration.py`,
@@ -63,3 +79,11 @@ cd /path/to/repo && python -m pytest tests/ -q
   changes.
 - No test exercises a real model call through the guarded provider (needs
   network + credentials).
+
+## Completed opt-in privacy integration tests (2026-10-11)
+
+The subsequent real-model comparison used synthetic data, local Ollama and eight authorized live Requesty calls. It is separate from the earlier mocked release validation above. See [results and limitations](PII-TEST-RESULTS.md).
+
+Acceptance requires separate results for detection, exact input roundtrip, identity continuity, current relationships/debts, strict response format, outgoing payloads, reasoning/final answers, streaming, context compaction, real memory retrieval, restart and profile ownership. Original values in the browser are expected; original values in external requests are the privacy finding. Null known-value matches do not establish general PII freedom.
+
+The reproducible opt-in harness is in [Local Privacy Guard's integration tools](https://github.com/mgr-de/a0-local-privacy-guard/tree/ux/private-user-setup/tools/privacy_benchmark). It is not collected by the ordinary offline test suite. Hosted Requesty PII scanner accuracy is not covered by these model-routing tests.
