@@ -23,7 +23,7 @@ export const store = createStore("requesty", {
         } catch(e) {if(epoch===this.epoch)this.error=e.message;}
         finally {if(epoch===this.epoch)this.busy=false;}
     },
-    instanceActive:false, models: [], busy: false, search: "", showRejected: false,
+    instanceActive:false, models: [], busy: false, search: "", showRejected: false, showProviders: false,
     main: "", utility: "", presetName: "Requesty Private", key: "", hasKey: false,
     keyKnown: false, catalogPolicy: "", epoch: 0, ticket: "", testState: "",
     error: "", message: "", createdPreset: "", createdState: "", catalogLoaded: false,
@@ -82,6 +82,11 @@ export const store = createStore("requesty", {
         return this.models.filter(m => (this.showRejected || m.allowed) && m.id.toLowerCase().includes(query));
     },
     allowed() { return this.models.filter(m => m.allowed); },
+    choices() {
+        const eligible=this.allowed();
+        const hasShort=eligible.some(m=>!m.id.includes('/'));
+        return eligible.filter(m=>this.showProviders || !hasShort || !m.id.includes('/') || m.id===this.main || m.id===this.utility);
+    },
     async saveRequirements(context) {
         if (this.busy || context.isSaving || (!context.hasUnsavedChanges && this.requirementsSaved) || !context.agentProfileKey) return;
         const epoch = this.epoch;

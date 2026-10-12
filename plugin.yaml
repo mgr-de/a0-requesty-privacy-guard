@@ -1,7 +1,7 @@
 name: requesty
 title: Requesty
 description: Requesty model setup with regional and provider data requirements checked against catalog metadata. Provider claims are not independently audited; Requesty organization retention remains unverified.
-version: 0.5.0
+version: 0.5.1
 settings_sections:
   - agent
 per_project_config: true

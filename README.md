@@ -78,3 +78,12 @@ See [test environment and settings entry](docs/TEST-ENVIRONMENT.md) for the fixe
 [Empfohlene Requesty-Kontoeinstellungen mit Screenshot](docs/REQUESTY-ACCOUNT-SETTINGS.md): EU-Gateway, Requesty-ZDR, Anbieter-ZDR und geprüfte EU-Modelle. Die Kontocheckliste in Config ist eine datierte Nutzerbestätigung, keine technische Prüfung. Native Preset-Menüs erhalten Zulässigkeit und konkrete Ablehnungsgründe; aktuelle Modellidentitäten einschließlich Vision bleiben sichtbar.
 
 [Requesty Privacy Agent](https://github.com/mgr-de/a0-requesty-privacy-agent) ist ein separates Komfort-Plugin für die gesamte Installation. Es setzt Mindestregeln und gemeinsame Modelle/Schlüssel durch, ohne gespeicherte Profile oder gemeinsame Presets umzuschreiben. Eigene aktive Profilsetups bleiben möglich; strengere Profilanforderungen gelten auch bei geerbten Modellen. Dieses Plugin bleibt allein weiterhin profilbezogen nutzbar.
+
+
+## Kurze Modellnamen und Routing-Policies
+
+Die Auswahl zeigt zunächst kurze Requesty Managed Policies, sofern passende vorhanden sind. Anbieterspezifische IDs bleiben über den Schalter verfügbar; gespeicherte spezifische Auswahlen bleiben sichtbar. Namen werden unverändert gesendet, niemals durch Abschneiden eines Anbieterpräfixes erzeugt.
+
+Der authentifizierte `/v1/models`-Katalog muss zuerst erfolgreich geladen werden. Der ergänzende öffentliche `/v1/models/managed`-Katalog enthält die dokumentierten aggregierten Datenschutz- und Fähigkeitsangaben der Managed Policies; diese werden gegen dieselben Mindestregeln geprüft. Er ist nicht auf den API-Schlüssel begrenzt: Requesty kann einen angezeigten Namen zusätzlich durch Schlüssel-/Kontoregeln ablehnen. Bei eigenen namensgleichen Policies werden öffentliche Angaben nicht als Nachweis verwendet. Eigene `policy/<name>`-Ziele sind derzeit nicht unabhängig prüfbar und bleiben gesperrt. Fehlende oder globale Standortangaben reichen nicht für EU-Schutz.
+
+[Managed Policies](https://docs.requesty.ai/features/managed-policies), [Managed-Katalog](https://docs.requesty.ai/api-reference/endpoint/models-managed-list). Requesty kann Managed Policies ändern; die Prüfung verwendet aktuelle Katalogangaben mit höchstens 60 Sekunden Cache. Sie bestätigt Anbieterangaben, keine unabhängig auditierte Ausführung.

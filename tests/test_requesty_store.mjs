@@ -131,3 +131,9 @@ test('unchanged defaults can be saved as the first explicit profile policy', asy
     await store.saveRequirements(context);
     assert.equal(calls.length,1);assert.equal(calls[0][0],'plugins');assert.equal(store.requirementsSaved,true);
 });
+
+test('short choices keep saved provider selections and allow explicit providers',()=>{
+ const {store}=setup();store.models=[{id:'short',allowed:true},{id:'vendor/short',allowed:true},{id:'other/short',allowed:true}];
+ store.main='vendor/short';assert.deepEqual(Array.from(store.choices(),m=>m.id),['short','vendor/short']);
+ store.showProviders=true;assert.equal(store.choices().length,3);
+});
