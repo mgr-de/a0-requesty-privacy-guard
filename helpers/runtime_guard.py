@@ -4,24 +4,25 @@ from usr.plugins.requesty.helpers.policy import Policy, PolicyError, ENDPOINTS
 from usr.plugins.requesty.helpers import catalog
 from usr.plugins.requesty.helpers import scope
 from urllib.parse import urlparse
-from usr.plugins.requesty.helpers import local_models
+
+
+def is_local_route(wrapper, options):
+    """Recognize an explicitly configured host-local native endpoint, without probing it."""
+    endpoint=options.get('api_base') or getattr(wrapper.a0_model_conf,'api_base','')
+    parsed=urlparse(str(endpoint))
+    return parsed.scheme in {'http','https'} and parsed.hostname in {
+        'localhost','127.0.0.1','::1','host.docker.internal'
+    } and not parsed.username and not parsed.password
 
 
 def local_kwargs(wrapper, overrides):
-    """Only explicitly local Ollama routes; local provider labels alone are insufficient."""
+    """Retain native local endpoints without adding provider-specific integrations."""
     import models
     options = models._merge_litellm_call_kwargs(wrapper.kwargs, overrides)
-    provider = str(getattr(wrapper.a0_model_conf, "provider", wrapper.provider)).lower()
-    endpoint = options.get("api_base") or getattr(wrapper.a0_model_conf, "api_base", "")
-    parsed = urlparse(str(endpoint))
     forbidden = {"base_url", "model", "custom_llm_provider", "fallbacks", "model_list", "router",
                  "client", "aclient", "http_client", "extra_body", "extra_headers", "headers", "proxy"}
-    if provider not in {"ollama", "ollama_chat"} or parsed.scheme not in {"http", "https"} or parsed.hostname not in {
-        "localhost", "127.0.0.1", "::1", "host.docker.internal", "ollama"
-    } or parsed.username or parsed.password or forbidden.intersection(options):
-        raise PolicyError("Protected presets require a local Ollama endpoint or the profile's Requesty route.")
-    try:local_models.confirm(endpoint,wrapper.model_name.split('/',1)[-1],options.get('runner'))
-    except ValueError as error:raise PolicyError(str(error)) from None
+    if not is_local_route(wrapper,options) or forbidden.intersection(options):
+        raise PolicyError("This preset bypasses Requesty. Select the profile's Requesty route or an explicitly configured local endpoint.")
     return options
 
 
@@ -121,9 +122,6 @@ def guard_function(data):
         names = {"system_message", "user_message", "messages", "response_callback", "reasoning_callback",
                  "tokens_callback", "rate_limiter_callback", "explicit_caching"}
         original = data.get("kwargs", {})
-        conf_provider = str(getattr(wrapper.a0_model_conf, "provider", wrapper.provider)).lower()
-        if conf_provider not in {"ollama", "ollama_chat"}:
-            raise PolicyError("This preset bypasses Requesty. Select a Requesty or local model preset.")
         owner = wrapper._requesty_scope
         setup = scope.read(owner, "setup.json")
         if not setup or not setup.get("active") or not scope.enabled(owner):
@@ -165,8 +163,7 @@ def wrap_agent_result(data, agent=None, slot=None):
         override = agent.context.get_data("chat_model_override")
         browser_selected = agent.context.get_data("_browser_model_active")
         if selected is not None and (override or browser_selected):
-            provider = str(getattr(selected.a0_model_conf, "provider", selected.provider)).lower()
-            if provider in {"ollama", "ollama_chat"}:
+            if not is_requesty(selected) and is_local_route(selected,selected.kwargs):
                 from usr.plugins.requesty.helpers.wrapper import GuardedLocalWrapper
                 prefix, name = selected.model_name.split("/",1)
                 local = GuardedLocalWrapper(model=name,provider=prefix,model_config=deepcopy(selected.a0_model_conf), **deepcopy(selected.kwargs))

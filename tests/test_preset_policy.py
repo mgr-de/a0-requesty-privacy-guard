@@ -12,7 +12,6 @@ MODEL={"id":"synthetic/eu","api":"chat","geolocation":"eu","data_retention":Fals
 
 @pytest.fixture
 def protected(monkeypatch):
-    monkeypatch.setattr(guard.local_models,'confirm',lambda *a,**kw:True)
     setup={"active":True,"models":{"chat":{"provider":"requesty_guarded","name":MODEL["id"]},
                                      "utility":{"provider":"requesty_guarded","name":MODEL["id"]}}}
     monkeypatch.setattr(scope,"read",lambda identity,name,default=None:setup if name=="setup.json" else {})
@@ -46,9 +45,9 @@ def test_direct_provider_and_transport_override_rejected(protected):
 
 
 def test_local_endpoint_labels_cannot_hide_remote_hosts(protected):
-    wrapper=models.LiteLLMChatWrapper(model="gemma3:4b",provider="ollama_chat",
-        model_config=models.ModelConfig(type=models.ModelType.CHAT,provider="ollama_chat",name="gemma3:4b"),
-        api_base="http://host.docker.internal:11434")
+    wrapper=models.LiteLLMChatWrapper(model="synthetic-local",provider="openai",
+        model_config=models.ModelConfig(type=models.ModelType.CHAT,provider="openai",name="synthetic-local"),
+        api_base="http://host.docker.internal:8080/v1")
     assert guard.local_kwargs(wrapper,{})["api_base"].startswith("http://host")
     with pytest.raises(PolicyError):guard.local_kwargs(wrapper,{"api_base":"https://remote.example"})
 

@@ -23,14 +23,6 @@ class ModelStatus(ApiHandler):
         owner = inherited_owner(context.agent0)
         setup = scope.read(owner, "setup.json")
         if not setup or not setup.get("active") or not scope.enabled(owner):
-            from urllib.parse import urlparse
-            local=result.get("config",{}).get("chat_model",{})
-            endpoint=local.get("api_base") or local.get("kwargs",{}).get("api_base", "")
-            parsed=urlparse(str(endpoint))
-            if local.get("provider") in {"ollama","ollama_chat"} and local.get("name") and parsed.scheme in {"http","https"} and parsed.hostname in {
-                "localhost","127.0.0.1","::1","host.docker.internal","ollama"
-            }:
-                result['model_configured']=True
             return result
         try:
             scope.key(owner)
@@ -59,4 +51,8 @@ class ModelStatus(ApiHandler):
         result.update(config=config, model_configured=has_key or local_selection,
             model_configured_label=config.get("chat_model",{}).get("provider", "") + " / " + config.get("chat_model",{}).get("name", ""),
             api_key_status={**result.get("api_key_status", {}), "requesty_guarded":has_key})
+        result['requesty_active']=True
+        result['requesty_owner_profile']=owner[1]
+        result['effective_models']={slot:{key:config.get(section,{}).get(key,'') for key in ('provider','name')}
+            for slot,section in [('main','chat_model'),('utility','utility_model'),('embedding','embedding_model')]}
         return result

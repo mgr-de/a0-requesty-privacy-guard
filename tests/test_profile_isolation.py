@@ -110,12 +110,11 @@ class ProfileIsolationTests(unittest.IsolatedAsyncioTestCase):
         from usr.plugins.requesty.api.model_status import ModelStatus
         import threading
         self.write_setup(self.a)
-        slot={'provider':'ollama_chat','name':'gemma3:4b','kwargs':{'api_base':'http://host.docker.internal:11434'}}
+        slot={'provider':'openai','name':'synthetic-local','kwargs':{'api_base':'http://localhost:8080/v1'}}
         override={'chat':slot,'utility':slot,'vision':{}}
         self.alpha.context.set_data('chat_model_override',deepcopy(override))
         scope.path(self.a,'credentials.json').write_text('{}')
-        with patch.object(guard.local_models,'confirm',return_value=True):
-            result=await ModelStatus(None,threading.RLock()).process({'context_id':self.alpha.context.id},None)
+        result=await ModelStatus(None,threading.RLock()).process({'context_id':self.alpha.context.id},None)
         self.assertTrue(result['model_configured'])
         self.assertFalse(result['api_key_status']['requesty_guarded'])
         self.assertEqual(self.alpha.context.get_data('chat_model_override'),override)
