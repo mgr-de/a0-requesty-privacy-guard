@@ -5,7 +5,7 @@ from usr.plugins.requesty.helpers import catalog
 from usr.plugins.requesty.helpers import scope
 from urllib.parse import urlparse
 
-INSTANCE_API_VERSION=1
+INSTANCE_API_VERSION=2
 
 
 def is_local_route(wrapper, options):
@@ -45,23 +45,7 @@ def is_requesty(wrapper):
     return False
 
 
-def guarded_kwargs(wrapper, overrides):
-    import models
-    from helpers import plugins
-    owner = getattr(wrapper, "_requesty_scope", None)
-    if owner is None:
-        raise PolicyError("Requesty model has no owning profile. Create a profile model setup.")
-    if not scope.enabled(owner):
-        raise PolicyError("Requesty is disabled. Select your previous preset in Model Settings.")
-    setup = None
-    if not getattr(wrapper, "_requesty_test", False):
-        setup = scope.read(owner, "setup.json")
-        slot = getattr(wrapper, "_requesty_slot", None)
-        if not setup or not setup.get("active"):
-            raise PolicyError("The owning profile setup changed or is inactive. Rebuild the model before requesting.")
-    policy_owner=getattr(wrapper,'_requesty_policy_scope',None) or owner
-    policy = settings(policy_owner)
-    effective = models._merge_litellm_call_kwargs(wrapper.kwargs, overrides)
+def validate_model_parameters(effective, policy):
     # Do not let unvalidated secondary request bodies or transport choices bypass routing.
     forbidden = {"base_url", "model", "messages", "custom_llm_provider", "api_version",
                  "azure_ad_token", "client", "aclient", "http_client", "deployment_id",
@@ -91,6 +75,30 @@ def guarded_kwargs(wrapper, overrides):
     if base.rstrip('/') != policy.endpoint:
         raise PolicyError('The selected Requesty route conflicts with the owning profile region. Correct the preset endpoint.')
     effective["api_base"] = policy.endpoint
+    return effective
+
+
+def guarded_kwargs(wrapper, overrides):
+    import models
+    from helpers import plugins
+    owner = getattr(wrapper, "_requesty_scope", None)
+    if owner is None:
+        raise PolicyError("Requesty model has no owning profile. Create a profile model setup.")
+    if not scope.enabled(owner):
+        raise PolicyError("Requesty is disabled. Select your previous preset in Model Settings.")
+    setup = None
+    from usr.plugins.requesty.helpers.instance import manager
+    native_instance=manager()
+    native_mode=native_instance is not None and native_instance.read('setup.json',{}).get('native_presets')
+    if not getattr(wrapper, "_requesty_test", False):
+        setup = scope.read(owner, "setup.json")
+        slot = getattr(wrapper, "_requesty_slot", None)
+        if (not setup or not setup.get("active")) and not native_mode:
+            raise PolicyError("The owning profile setup changed or is inactive. Rebuild the model before requesting.")
+    policy_owner=getattr(wrapper,'_requesty_policy_scope',None) or owner
+    policy = settings(policy_owner)
+    effective = models._merge_litellm_call_kwargs(wrapper.kwargs, overrides)
+    effective = validate_model_parameters(effective, policy)
     raw = scope.key(owner)
     key = effective.get("api_key") or raw
     if key != raw:
@@ -101,6 +109,26 @@ def guarded_kwargs(wrapper, overrides):
     identifier = identifier[len("openai/"):]
     available = catalog.fetch(policy.endpoint, key)
     policy.check(available.get(identifier))
+    from usr.plugins.requesty.helpers.instance import manager
+    instance=manager()
+    if instance is not None and instance.read('setup.json',{}).get('native_presets') and not getattr(wrapper,'_requesty_test',False):
+        from usr.plugins.local_privacy_guard.helpers.model_guard import filtered_call,tool_agent as filter_agent
+        from usr.plugins.requesty.helpers.call_context import tool_agent
+        proof=filtered_call.get()
+        agent=tool_agent.get() or filter_agent.get() or (proof[1] if proof and proof[0] is wrapper else None)
+        if agent is not None:
+            from plugins._model_config.helpers import model_config as mc
+            role=getattr(wrapper,'_requesty_slot',None)
+            section={'chat':'chat_model','utility':'utility_model','vision':'vision_model'}.get(role)
+            effective_config=mc.get_effective_config(agent)
+            if role!='utility' and agent.context.get_data('_browser_model_active'):
+                section='vision_model' if mc.get_vision_model_config(agent) else 'chat_model'
+            if section and effective_config.get(section,{}).get('name')!=identifier:
+                raise PolicyError('The preset changed. Rebuild this cached model before requesting.')
+            if section is None:
+                current={effective_config.get(part,{}).get('name') for part in ('chat_model','utility_model')}
+                current.add(mc.get_vision_model_config(agent).get('name'))
+                if identifier not in current:raise PolicyError('This cached tool model is no longer selected by the native preset. Rebuild it.')
     if settings(policy_owner) != policy or scope.key(owner) != raw or not scope.enabled(owner):
         raise PolicyError("Requesty configuration changed during validation; retry the request.")
     if setup is not None and scope.read(owner, "setup.json") != setup:
@@ -184,7 +212,10 @@ def wrap_agent_result(data, agent=None, slot=None):
     from usr.plugins.requesty.helpers.call_context import owner as inherited_owner
     owner = inherited_owner(agent) if agent is not None else getattr(data.get("result"), "_requesty_scope", None)
     setup = scope.read(owner, "setup.json") if owner else None
-    if agent is not None and setup and setup.get("active") and scope.enabled(owner):
+    from usr.plugins.requesty.helpers.instance import manager
+    native_instance=manager()
+    native_mode=native_instance is not None and native_instance.read('setup.json',{}).get('native_presets')
+    if agent is not None and ((setup and setup.get("active")) or native_mode) and scope.enabled(owner):
         from usr.plugins.requesty.helpers.instance import manager
         instance=manager()
         from usr.plugins.requesty.helpers.call_context import root_agent
@@ -195,13 +226,15 @@ def wrap_agent_result(data, agent=None, slot=None):
         selected = data.get("result")
         override = agent.context.get_data("chat_model_override")
         browser_selected = agent.context.get_data("_browser_model_active")
-        if selected is not None and (override or browser_selected):
+        native_presets=native_mode or bool(setup and setup.get('native_presets'))
+        if selected is not None and (override or browser_selected or native_presets):
             endpoint=selected.kwargs.get('api_base') or getattr(selected.a0_model_conf,'api_base','')
             if not is_requesty(selected) and str(endpoint).rstrip('/') in ENDPOINTS.values() and selected.model_name.startswith('openai/'):
                 selected=selected.model_copy(deep=True)
                 selected.a0_model_conf=deepcopy(selected.a0_model_conf)
                 selected.a0_model_conf.provider='requesty_guarded'
             if not is_requesty(selected) and is_local_route(selected,selected.kwargs):
+                if native_mode:raise PolicyError('Privacy Agent requires Requesty for Main, Utility and Vision.')
                 from usr.plugins.requesty.helpers.wrapper import GuardedLocalWrapper
                 prefix, name = selected.model_name.split("/",1)
                 local = GuardedLocalWrapper(model=name,provider=prefix,model_config=deepcopy(selected.a0_model_conf), **deepcopy(selected.kwargs))

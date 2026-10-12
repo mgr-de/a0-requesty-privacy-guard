@@ -62,7 +62,8 @@
     <p x-text="!$store.requesty.requirementsSaved ? 'Save to create this profile’s own privacy requirements, even if you keep the defaults.' : context.hasUnsavedChanges ? 'Privacy requirements have unsaved changes.' : 'Privacy requirements match the saved settings. This does not confirm an active chat uses this setup.'"></p>
     <button class="btn" type="button" @click="$store.requesty.saveRequirements(context)" :disabled="$store.requesty.busy || context.isSaving || (!context.hasUnsavedChanges && $store.requesty.requirementsSaved)">Save privacy requirements</button>
   </section>
-  <section class="privacy-card" aria-labelledby="requesty-models-title">
+  <p x-show="$store.requesty.nativePresets">Privacy Agent verwendet native A0-Presets. Modelle dort bearbeiten; Schlüssel und zusätzliche Profilanforderungen bleiben hier. Für Modelländerungen muss der Schutz nicht abgeschaltet werden.</p>
+  <section class="privacy-card" aria-labelledby="requesty-models-title" x-show="!$store.requesty.nativePresets">
     <h3 id="requesty-models-title" class="section-title">3. Choose your models</h3>
     <p>Short names are Requesty-managed routing policies. Their catalog metadata must meet the same privacy requirements. Provider-specific IDs remain available. Custom policy targets cannot currently be verified and remain blocked.</p>
     <label><input type="checkbox" x-model="$store.requesty.showProviders"> Show provider-specific models</label>
@@ -90,7 +91,7 @@
       </div>
     </details>
   </section>
-  <section class="privacy-card" aria-labelledby="requesty-test-title">
+  <section class="privacy-card" aria-labelledby="requesty-test-title" x-show="!$store.requesty.nativePresets">
     <h3 id="requesty-test-title" class="section-title">4. Test and create your setup</h3>
     <p>The test sends a fixed artificial example, no chats or memory: at most two requests with up to 256 output tokens each. Small API charges may apply.</p>
     <button class="btn" type="button" @click="$store.requesty.testModels(config, context.hasUnsavedChanges)" :disabled="$store.requesty.busy || context.hasUnsavedChanges || !$store.requesty.catalogCurrent(config) || !$store.requesty.main || !$store.requesty.utility">Run example model test</button>
@@ -121,7 +122,7 @@
     <p>When Requesty is the helper model, automatic memory updates append entries without consolidating or replacing existing entries. Recall remains available. Manual changes retain standard Agent Zero behavior.</p>
     <p>Existing memory folders and embeddings are preserved. While active, this profile uses a separate memory folder. Existing memories are not copied into it. Main, Browser and separate Vision models must meet the same model-route requirements. Images are processed by the selected service; local text masking does not protect their image content.</p>
     <p>Deactivation stops this profile override and restores its native model selection. It preserves the setup, key and separate memory folder.</p>
-    <button class="btn" type="button" @click="$store.requesty.recover()" :disabled="$store.requesty.busy">Deactivate profile setup</button>
+    <button class="btn" type="button" @click="$store.requesty.recover()" x-show="!$store.requesty.nativePresets" :disabled="$store.requesty.busy">Deactivate profile setup</button>
     <p>Disabling or uninstalling stops the runtime override; it never rewrites another profile or shared preset.</p>
   </details>
 </fieldset>

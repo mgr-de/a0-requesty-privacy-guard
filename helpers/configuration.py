@@ -51,6 +51,10 @@ def build_candidate(name, original, main, utility, policy, catalog):
     return candidate
 
 def create(name, main, utility, expected_policy, owner):
+    from usr.plugins.requesty.helpers.instance import manager
+    instance=manager()
+    if instance is not None and instance.read('setup.json',{}).get('native_presets'):
+        raise PolicyError('Edit models in the native A0 preset editor. Profile keys and privacy requirements remain here.')
     from plugins._model_config.helpers import model_config as mc
     with _lock:
         policy = settings(owner)
@@ -68,10 +72,23 @@ def create(name, main, utility, expected_policy, owner):
                 "activated": False, "vision_sidecar_disabled": True}
 
 def activate(owner, active):
+    from usr.plugins.requesty.helpers.instance import manager
+    instance=manager()
+    if instance is not None and instance.read('setup.json',{}).get('native_presets'):
+        raise PolicyError('Use native A0 presets for model selection and Privacy Agent for central activation.')
     if type(active) is not bool:
         raise PolicyError("Activation must be a boolean.")
     with _lock:
         setup = scope.read(owner, "setup.json")
+        if setup and setup.get('native_presets'):
+            if active:
+                policy=settings(owner);key=scope.key(owner)
+                from plugins._model_config.helpers import model_config as mc
+                native=mc.get_config(project_name=owner[0] or None,agent_profile=owner[1])
+                available=fetch(policy.endpoint,key,refresh=True)
+                for section in ('chat_model','utility_model'):policy.check(available.get(native.get(section,{}).get('name')))
+            setup['active']=active;atomic_write(scope.path(owner,'setup.json'),json.dumps(setup))
+            return {'activated':active}
         if not isinstance(setup, dict) or not isinstance(setup.get("models"), dict):
             raise PolicyError("Create a model setup for this profile first.")
         if active:

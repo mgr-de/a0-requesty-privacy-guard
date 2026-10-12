@@ -23,3 +23,7 @@ assert.equal(store.getSwitcherLabel(),'Approved deepseek-v4.1-flash');
 updateModelDisplay(store,'protected',current,{},null);
 assert.equal(store.getSwitcherLabel(),'Default gpt-6.1-sol');
 console.log('effective model display preserves presets and other chats');
+
+// Native migration labels follow the actual selected preset.
+updateModelDisplay(store,'protected',current,{...status,native_presets:true,selected_preset:'Efficiency'},null);
+assert.equal(store.getSwitcherLabel(),'Efficiency deepseek-v4.1-flash');
