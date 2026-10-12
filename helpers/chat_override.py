@@ -7,7 +7,10 @@ def backup_key(owner):
     return "requesty_chat_override_" + hashlib.sha256(json.dumps(owner).encode()).hexdigest()
 
 def reconcile(agent, owner, active):
+    from plugins._agent_editor.helpers.editor import EditorAgent
+    if isinstance(agent,EditorAgent):return
     context = agent.context
+    if not getattr(context,'id',None):return # Editor reads never change chat state.
     key = backup_key(owner)
     current = context.get_data("chat_model_override")
     saved = context.get_data(key)

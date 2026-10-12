@@ -18,3 +18,11 @@ test('stale chat result cannot replace current eligibility',()=>{
  const context={};vm.createContext(context);vm.runInContext(source,context);
  const store={};context.updatePresetDisplay(store,'old',()=> 'new',{protected:true,presets:[]});assert.equal(store._requestyPresetStatus,undefined);
 });
+
+test('current protected setup is retained as a separate scoped choice',()=>{
+ const context={};vm.createContext(context);vm.runInContext(source,context);
+ const store={};const scoped={name:'Privacy Agent · gemeinsam',allowed:true,models:{main:{name:'deepseek-v4.1-flash'}}};
+ context.updatePresetDisplay(store,'one',()=> 'one',{protected:true,presets:[],scoped});
+ assert.equal(store._requestyPresetStatus.scoped,scoped);
+ context.updatePresetDisplay(store,'one',()=> 'one',{protected:false});assert.equal(store._requestyPresetStatus,null);
+});

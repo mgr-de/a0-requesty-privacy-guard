@@ -87,3 +87,10 @@ Die Auswahl zeigt zunächst kurze Requesty Managed Policies, sofern passende vor
 Der authentifizierte `/v1/models`-Katalog muss zuerst erfolgreich geladen werden. Der ergänzende öffentliche `/v1/models/managed`-Katalog enthält die dokumentierten aggregierten Datenschutz- und Fähigkeitsangaben der Managed Policies; diese werden gegen dieselben Mindestregeln geprüft. Er ist nicht auf den API-Schlüssel begrenzt: Requesty kann einen angezeigten Namen zusätzlich durch Schlüssel-/Kontoregeln ablehnen. Bei eigenen namensgleichen Policies werden öffentliche Angaben nicht als Nachweis verwendet. Eigene `policy/<name>`-Ziele sind derzeit nicht unabhängig prüfbar und bleiben gesperrt. Fehlende oder globale Standortangaben reichen nicht für EU-Schutz.
 
 [Managed Policies](https://docs.requesty.ai/features/managed-policies), [Managed-Katalog](https://docs.requesty.ai/api-reference/endpoint/models-managed-list). Requesty kann Managed Policies ändern; die Prüfung verwendet aktuelle Katalogangaben mit höchstens 60 Sekunden Cache. Sie bestätigt Anbieterangaben, keine unabhängig auditierte Ausführung.
+
+
+## Privacy-Auswahl im Chat und Profil-Editor
+
+Das Chat-Menü zeigt die geprüfte gespeicherte Einrichtung als eigene Auswahl: „Privacy Agent · gemeinsam“ bei gemeinsamer Basis, sonst „Requesty · Profileinrichtung“. Sie kehrt über die native Funktion zur scoped configuration zurück, statt ein künstliches globales Preset zu speichern. Alte globale Presets bleiben erhalten und werden separat geprüft. Die ausgewählte Privacy-Basis ist als aktiv erkennbar; unzulässige Chat-Presets bleiben gesperrt. Globale Modelleinstellungen und Profil-Editor erklären die effektive Privacy-Route.
+
+Der native Profil-Editor verwendet Lesekontexte ohne Chat-ID. Diese erhalten ihre eigene Profilkonfiguration, ohne Parent-Chat-Suche, Rücksetzen von Chat-Auswahlen oder Zugriff auf fremde Chat-Zuordnungen. Native Regressionen decken Editoröffnung sowie eine geprüfte gemeinsame Menüauswahl ohne Schlüsselwerte im API-Ergebnis ab.
