@@ -1,7 +1,9 @@
 <p align="center"><img src="assets/icon.svg" alt="Requesty Privacy Guard" width="128" height="128"></p>
 # Requesty for Agent Zero 2.13
 
-Version 0.6.0. Privacy policy, credentials and model setup belong to an explicit agent profile, optionally within a project. Shared model presets and global API keys are never written by setup or deactivation.
+Version 0.6.1. Privacy policy, credentials and model setup belong to an explicit agent profile, optionally within a project. Shared model presets and global API keys are never written by setup or deactivation.
+
+Requesty Privacy Agent 0.3.0 can explicitly grant new Developer chats an exception from PII masking through Local Privacy Guard 1.9.0. This release displays PII mode and required Secret screening separately from routing. **Requesty routing and provider requirements are unchanged.** A protected route does not mean personal data is masked: granted Developer chats can transmit the entire text context without PII replacement. Existing chats stay masked; grants, revocation, isolated Memory and mandatory login are managed centrally. [Operator instructions](https://github.com/mgr-de/a0-requesty-privacy-agent#developer-ohne-maskierung).
 
 An active setup supplies default Main and Utility models. Explicit native presets remain selected and must meet the profile policy: external models use Requesty, while explicitly configured native local endpoints are allowed. Incompatible selections are rejected without silently replacing them. Main, Utility, Browser and separate Vision calls are checked; image support must be confirmed in the Requesty catalog. Subordinate agents inherit the active root profile's minimum policy during native tool calls. Independent chats retain their own settings.
 
