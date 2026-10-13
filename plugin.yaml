@@ -1,7 +1,7 @@
 name: requesty
 title: A0 Privacy Suite - Model Gateway
 description: Independently developed Requesty connection setup with regional and provider data requirements checked against catalog metadata. Provider claims are not independently audited; Requesty organization retention remains unverified.
-version: 0.9.0
+version: 0.9.1
 settings_sections:
   - agent
 per_project_config: true
