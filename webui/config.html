@@ -1,6 +1,6 @@
 <html>
 <head>
-  <title>Requesty Privacy Guard</title>
+  <title>A0 Privacy Suite - Model Gateway</title>
   <link rel="stylesheet" href="/plugins/requesty/webui/privacy-settings.css">
   <script type="module" src="/plugins/requesty/webui/requesty-store.js"></script>
 </head>
@@ -8,8 +8,9 @@
 <div x-data>
 <template x-if="$store.requesty && config">
 <div class="privacy-settings" x-init="$store.requesty.onOpen(context)" x-destroy="$store.requesty.cleanup()" x-effect="$store.requesty.setScope(context)" :aria-busy="$store.requesty.busy">
-  <h2 class="section-title">Private model setup</h2>
-  <p>If Requesty Privacy Agent protects this installation, all profiles inherit its common key and minimum rules. This editor can create a profile's own model setup; weaker settings and profile toggles do not switch off the installation-wide rules.</p>
+  <h2 class="section-title">A0 Privacy Suite - Model Gateway</h2>
+<p>Private Vorabversion 0.9.0. Unabhängiges Projekt, kein Produkt von Requesty und keine Zugehörigkeit zum Anbieter.</p>
+  <p>If A0 Privacy Suite - Manager protects this installation, all profiles inherit its common key and minimum rules. This editor can create a profile's own model setup; weaker settings and profile toggles do not switch off the installation-wide rules.</p>
   <aside class="privacy-note"><strong>One agent profile at a time.</strong><p>Choose an Agent profile in the toolbar. Keys, privacy rules, model setup and memory storage belong to this selected profile. Global presets and keys are never changed.</p><p x-text="context.agentProfileKey ? 'Selected profile: ' + context.agentProfileKey : 'No profile selected — setup actions are unavailable.'"></p></aside>
   <div x-show="!context.agentProfileKey">
     <p>Requesty is configured for one agent profile. Choose an Agent profile above to edit its saved setup.</p>
@@ -19,7 +20,7 @@
   <p>Choose where supported Requesty model requests are processed and which provider data rules they must meet.</p>
   <aside class="privacy-note">
     <strong>These models run outside your device.</strong>
-    <p>Local embeddings do not prevent conversation or recalled memory text from being sent to a helper model. Local Privacy Guard can replace detected personal details before supported calls; it cannot guarantee complete detection.</p>
+    <p>Local embeddings do not prevent conversation or recalled memory text from being sent to a helper model. A0 Privacy Suite - Local Guard can replace detected personal details before supported calls; it cannot guarantee complete detection.</p>
     <p>Provider rules below are checked against Requesty's catalog, not independently audited. They do not delete local chats, memory or logs, or verify Requesty's own retention.</p>
     <p>Requesty's hosted PII scanning happens after your text reaches Requesty. Local masking must happen before sending if you want to reduce the personal details Requesty receives. Neither scanner guarantees complete anonymization.</p>
   </aside>

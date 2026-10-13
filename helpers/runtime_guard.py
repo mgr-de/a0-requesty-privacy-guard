@@ -24,7 +24,7 @@ def local_kwargs(wrapper, overrides):
     forbidden = {"base_url", "model", "custom_llm_provider", "fallbacks", "model_list", "router",
                  "client", "aclient", "http_client", "extra_body", "extra_headers", "headers", "proxy"}
     if not is_local_route(wrapper,options) or forbidden.intersection(options):
-        raise PolicyError("This preset bypasses Requesty. Select the profile's Requesty route or an explicitly configured local endpoint.")
+        raise PolicyError("A0 Privacy: This preset bypasses the required Requesty connection. Select the profile's protected route or an explicitly configured local endpoint.")
     return options
 
 
@@ -245,7 +245,7 @@ def wrap_agent_result(data, agent=None, slot=None):
                 data["result"] = local
                 return
             if not is_requesty(selected):
-                raise PolicyError("This preset bypasses Requesty. Select a Requesty or local model preset.")
+                raise PolicyError("A0 Privacy: This preset bypasses the required Requesty connection. Select a protected Requesty or local model preset.")
             conf = {"provider":"requesty_guarded", "name":selected.model_name.removeprefix("openai/"),
                     "kwargs":deepcopy(selected.kwargs), "vision":bool(selected.a0_model_conf.vision)}
         else:

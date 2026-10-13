@@ -18,6 +18,6 @@ export function updateModelDisplay(store, contextId, currentContext, status, ove
     if (!status?.requesty_active) {store._requestyModelDisplay=null;return;}
     const main=status.effective_models?.main?.name || '';
     const leaf=main.slice(main.lastIndexOf('/')+1);
-    const prefix=override?.preset_name || (override ? 'Custom' : status.native_presets ? status.selected_preset || 'Default' : 'Requesty');
+    const prefix=override?.preset_name || (override ? 'Custom' : status.native_presets ? status.selected_preset || 'Default' : 'A0 Privacy');
     store._requestyModelDisplay={contextId,label:leaf ? `${prefix} ${leaf}` : prefix,models:status.effective_models};
 }

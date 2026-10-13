@@ -9,7 +9,7 @@ const current=()=>selected;
 const status={requesty_active:true,effective_models:{main:{provider:'requesty_guarded',name:'tensorx/deepseek-v4.1-flash'},utility:{name:'synthetic-helper'}}};
 installModelDisplay(store,current);installModelDisplay(store,current);
 updateModelDisplay(store,'protected',current,status,null);
-assert.equal(store.getSwitcherLabel(),'Requesty deepseek-v4.1-flash');
+assert.equal(store.getSwitcherLabel(),'A0 Privacy deepseek-v4.1-flash');
 assert.equal(store.getActiveModels().main.name,'tensorx/deepseek-v4.1-flash');
 assert.equal(store.switcherOverride,null);
 assert.deepEqual(store.switcherPresets,[preset]);

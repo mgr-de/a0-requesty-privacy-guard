@@ -19,12 +19,12 @@ export const store = createStore("requesty", {
             if(epoch!==this.epoch)return;
             if(!result.ok)throw new Error(result.error);
             this.account=result.account;
-            toastFrontendSuccess('Account settings recorded as user-confirmed, not technically verified.','Requesty');
+            toastFrontendSuccess('Account settings recorded as user-confirmed, not technically verified.','A0 Privacy Model Gateway');
         } catch(e) {if(epoch===this.epoch)this.error=e.message;}
         finally {if(epoch===this.epoch)this.busy=false;}
     },
     instanceActive:false, nativePresets:false, models: [], busy: false, search: "", showRejected: false, showProviders: false,
-    main: "", utility: "", presetName: "Requesty Private", key: "", hasKey: false,
+    main: "", utility: "", presetName: "A0 Privacy Private", key: "", hasKey: false,
     keyKnown: false, catalogPolicy: "", epoch: 0, ticket: "", testState: "",
     error: "", message: "", createdPreset: "", createdState: "", catalogLoaded: false,
     catalogTime: "", testedAt: 0, now: 0, timer: null,
@@ -61,7 +61,7 @@ export const store = createStore("requesty", {
             this.nativePresets=!!result.native_presets;
             this.savedMain = result.main || ""; this.savedUtility = result.utility || "";
             this.main = this.savedMain; this.utility = this.savedUtility;
-            this.presetName = this.createdPreset || "Requesty Private";
+            this.presetName = this.createdPreset || "A0 Privacy Private";
             this.requirementsSaved = !!result.requirements_saved;
             this.keyKnown = true;
             await this.loadAccount();
@@ -175,7 +175,7 @@ export const store = createStore("requesty", {
             this.savedMain = payload.main; this.savedUtility = payload.utility;
             this.createdState = JSON.stringify([payload.config, payload.main, payload.utility]);
             this.message = `Created: ${result.preset}. Not activated. Activate it here for the selected profile.`;
-            toastFrontendSuccess(this.message, "Requesty");
+            toastFrontendSuccess(this.message, "A0 Privacy Model Gateway");
         } catch (e) { if (epoch === this.epoch) this.error = e.message; }
         finally { if (epoch === this.epoch) this.busy = false; }
     },
