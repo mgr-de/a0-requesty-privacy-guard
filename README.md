@@ -1,7 +1,7 @@
 <p align="center"><img src="assets/icon.svg" alt="Requesty Privacy Guard" width="128" height="128"></p>
 # Requesty for Agent Zero 2.13
 
-Version 0.5.0. Privacy policy, credentials and model setup belong to an explicit agent profile, optionally within a project. Shared model presets and global API keys are never written by setup or deactivation.
+Version 0.6.0. Privacy policy, credentials and model setup belong to an explicit agent profile, optionally within a project. Shared model presets and global API keys are never written by setup or deactivation.
 
 An active setup supplies default Main and Utility models. Explicit native presets remain selected and must meet the profile policy: external models use Requesty, while explicitly configured native local endpoints are allowed. Incompatible selections are rejected without silently replacing them. Main, Utility, Browser and separate Vision calls are checked; image support must be confirmed in the Requesty catalog. Subordinate agents inherit the active root profile's minimum policy during native tool calls. Independent chats retain their own settings.
 
@@ -66,7 +66,7 @@ See [UI review](docs/UI-REVIEW.md), [profile scope review](docs/PROFILE-SCOPE-RE
 
 ## Current standard-protection validation
 
-See [1.4 / 0.4 test results](docs/STANDARD-TEST-RESULTS.md) for native routes, multilingual sessions, secrets, inherited subordinate policy, images and the partly manual form test. Historical comparison reports describe earlier code. Installation/update hooks create owned native adapters for inherited policies, with ownership journals outside the plugin ZIP; restart Agent Zero after installation/update. Independent other-profile chats are unaffected. Local models remain native Agent Zero choices; no local-server metadata or weight checks are performed by these plugins. Full mappings contain local original values; malformed/truncated model tokens cannot reliably be restored, and truncated native chat titles use a neutral caption.
+See [the fixed-detector validation](docs/SINGLE-DETECTOR-VALIDATION.md) and [historical 1.4 / 0.4 test results](docs/STANDARD-TEST-RESULTS.md) for native routes, multilingual sessions, secrets, inherited subordinate policy, images and the partly manual form test. Historical comparison reports describe earlier code. Installation/update hooks create owned native adapters for inherited policies, with ownership journals outside the plugin ZIP; restart Agent Zero after installation/update. Independent other-profile chats are unaffected. Local models remain native Agent Zero choices; no local-server metadata or weight checks are performed by these plugins. Full mappings contain local original values; malformed/truncated model tokens cannot reliably be restored, and truncated native chat titles use a neutral caption.
 
 See [the 12 October correction](docs/KORREKTUR-2026-10-12.md): effective Requesty model labels replace misleading shared-default labels in protected chats, without changing presets. Provider-specific local-server probes were removed.
 
@@ -105,3 +105,9 @@ Neue Einrichtungen starten mit Default (Sol/Luna); Efficiency verwendet GLM/Deep
 Sicherungen liegen ausschließlich lokal unter usr/privacy-agent/preset-backups. Veraltete Vorschauen werden abgelehnt. Eine fehlgeschlagene Übernahme stellt die vorherigen Presets und Zuordnungen wieder her. Die separate Wiederherstellung ist nach zentraler Deaktivierung möglich und verweigert das Überschreiben späterer Änderungen. Updates migrieren oder überschreiben Presets nicht automatisch. Erst nach Vorbereitung der Komponenten, bestätigter Migration und expliziter Aktivierung gelten die installationsweiten Regeln.
 
 Die nativen Speicher- und Auswahladapter werden beim A0-Start eingerichtet, sind reversibel und verändern keine A0-Kerndateien. Direkte API-Eingaben werden ebenfalls geprüft; alte Modellwrapper mit abweichender Modellwahl müssen neu aufgebaut werden. Ohne Manager bleibt das eigenständige Verhalten dieses Plugins erhalten. Bildinhalte und beliebige Werkzeugübertragungen bleiben außerhalb der lokalen Textmaskierung.
+
+## Source code and local privacy filtering
+
+Requesty remains version 0.6.0; its routing and provider-policy checks are unchanged. Source-code recognition belongs to the separate Local Privacy Guard component, available from version 1.8.0. Recognized Python and conservative JavaScript/TypeScript syntax is retained while comments, string data and secrets remain checked. Unsupported source uses ordinary text checks. This does not provide blanket code exclusion or change Requesty routes. See [code handling and limits](https://github.com/mgr-de/a0-local-privacy-guard/blob/main/docs/CODE-FILTERING.md).
+
+The historical integration reports retain their original test scope. The fixed-detector lifecycle report describes the previous 1.7.4/0.2.7 release; new source-code regressions are recorded with the Local Privacy Guard change.
