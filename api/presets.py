@@ -28,7 +28,7 @@ class Presets(ApiHandler):
         from usr.plugins.requesty.helpers.instance import manager
         from usr.plugins.requesty.helpers.call_context import root_agent
         policy_owner=scope.from_agent(root_agent(context.agent0)) if manager() is not None else identity
-        scoped=evaluate(mc.config_to_preset(base,'Privacy Agent · gemeinsam' if manager() is not None and identity==manager().SHARED else 'Requesty · Profileinrichtung'),base,identity,local,policy_owner)
+        scoped=evaluate(mc.config_to_preset(base,'A0 Privacy · gemeinsam' if manager() is not None and identity==manager().SHARED else 'A0 Privacy · Profileinrichtung'),base,identity,local,policy_owner)
         scoped['models']={label:base.get(section,{}) for label,section in [('main','chat_model'),('utility','utility_model'),('embedding','embedding_model')]}
         # Return identities only: transport kwargs may contain authentication.
         scoped['models']={label:{key:conf.get(key) for key in ('provider','name')} for label,conf in scoped['models'].items()}

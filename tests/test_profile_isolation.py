@@ -101,7 +101,7 @@ class ProfileIsolationTests(unittest.IsolatedAsyncioTestCase):
         self.alpha.context.set_data("chat_model_override",{"preset_name":mc.DEFAULT_PRESET_NAME})
         result=await ModelStatus(None,threading.RLock()).process({"context_id":self.alpha.context.id},None)
         self.assertFalse(result["model_configured"])
-        self.assertIn('bypasses Requesty',result['policy_error'])
+        self.assertIn('bypasses the required Requesty connection',result['policy_error'])
         self.assertEqual(result["config"]["vision_model"],{})
         self.assertEqual(result["config"]["chat_model"]["name"],mc.get_chat_model_config(self.alpha)["name"])
         self.assertEqual(self.alpha.context.get_data("chat_model_override"),{"preset_name":mc.DEFAULT_PRESET_NAME})

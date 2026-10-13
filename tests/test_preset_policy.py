@@ -40,7 +40,7 @@ def test_direct_provider_and_transport_override_rejected(protected):
     with pytest.raises(PolicyError):guard.guarded_kwargs(make(),{"base_url":"https://unapproved.example"})
     wrapper=make(provider="openrouter")
     wrapper._requesty_policy_bound=True
-    with pytest.raises(PolicyError,match="bypasses Requesty"):
+    with pytest.raises(PolicyError,match="bypasses the required Requesty connection"):
         guard.guard_function({"args":(wrapper,),"kwargs":{}})
 
 
