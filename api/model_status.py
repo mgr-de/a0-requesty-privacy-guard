@@ -64,4 +64,10 @@ class ModelStatus(ApiHandler):
         result['model_route']=config.get('chat_model',{}).get('api_base','')
         result['instance_protection']=instance is not None
         result['native_presets']=bool(native)
+        if instance is not None:
+            from usr.plugins.requesty_privacy_agent.helpers.profile_exceptions import effective
+            masking=effective(context.agent0)['mode']=='masked'
+            result['pii_masking']=masking
+            result['secret_guard']=True
+            result['privacy_mode_label']='PII-Maskierung aktiv · Secret-Prüfung aktiv' if masking else 'PII-Maskierung aus · Secret-Prüfung aktiv'
         return result
