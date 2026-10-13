@@ -9,7 +9,7 @@
 <template x-if="$store.requesty && config">
 <div class="privacy-settings" x-init="$store.requesty.onOpen(context)" x-destroy="$store.requesty.cleanup()" x-effect="$store.requesty.setScope(context)" :aria-busy="$store.requesty.busy">
   <h2 class="section-title">A0 Privacy Suite - Model Gateway</h2>
-<p>Community-Beta 0.9.1. Unabhängiges Projekt, kein Produkt von Requesty und keine Zugehörigkeit zum Anbieter.</p>
+<p>Community-Beta 0.9.2. Unabhängiges Projekt, kein Produkt von Requesty und keine Zugehörigkeit zum Anbieter.</p>
   <p>If A0 Privacy Suite - Manager protects this installation, all profiles inherit its common key and minimum rules. This editor can create a profile's own model setup; weaker settings and profile toggles do not switch off the installation-wide rules.</p>
   <aside class="privacy-note"><strong>One agent profile at a time.</strong><p>Choose an Agent profile in the toolbar. Keys, privacy rules, model setup and memory storage belong to this selected profile. Global presets and keys are never changed.</p><p x-text="context.agentProfileKey ? 'Selected profile: ' + context.agentProfileKey : 'No profile selected — setup actions are unavailable.'"></p></aside>
   <div x-show="!context.agentProfileKey">
