@@ -166,6 +166,8 @@ def guard_function(data):
             if native_requesty:
                 wrapper.a0_model_conf=deepcopy(wrapper.a0_model_conf)
                 wrapper.a0_model_conf.provider='requesty_guarded'
+            import weakref
+            if hasattr(wrapper,'_requesty_agent'):wrapper._requesty_agent=weakref.ref(active_agent)
             wrapper._requesty_scope = owner
             wrapper._requesty_slot = "vision"
             wrapper._requesty_policy_bound = True
@@ -261,6 +263,8 @@ def wrap_agent_result(data, agent=None, slot=None):
         options.update(api_base=settings(owner).endpoint,api_key=key)
         wrapper = GuardedRequestyWrapper(model=conf["name"], provider="openai",
             model_config=models.ModelConfig(type=models.ModelType.CHAT, **deepcopy(conf)), **options)
+        import weakref
+        wrapper._requesty_agent = weakref.ref(agent)
         wrapper._requesty_scope = owner
         wrapper._requesty_slot = slot
         wrapper._requesty_policy_bound = True

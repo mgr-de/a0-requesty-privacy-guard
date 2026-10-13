@@ -5,6 +5,7 @@ from usr.plugins.requesty.helpers.runtime_guard import guarded_kwargs, guard_fun
 
 
 class GuardedRequestyWrapper(LiteLLMChatWrapper):
+    _requesty_agent: object = PrivateAttr(default=None)
     _requesty_scope: tuple | None = PrivateAttr(default=None)
     _requesty_slot: str | None = PrivateAttr(default=None)
     _requesty_test: bool = PrivateAttr(default=False)
@@ -35,6 +36,7 @@ class GuardedRequestyWrapper(LiteLLMChatWrapper):
 
 
 class GuardedLocalWrapper(LiteLLMChatWrapper):
+    _requesty_agent: object = PrivateAttr(default=None)
     _requesty_scope: tuple | None = PrivateAttr(default=None)
     _requesty_policy_bound: bool = PrivateAttr(default=True)
     _requesty_policy_scope: tuple | None = PrivateAttr(default=None)
