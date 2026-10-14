@@ -4,7 +4,7 @@ import {installModelDisplay,updateModelDisplay} from '/plugins/requesty/webui/mo
 import {installPresetDisplay,updatePresetDisplay} from '/plugins/requesty/webui/preset-display.js';
 import {toastFrontendError} from '/components/notifications/notification-store.js';
 
-export default async function effectiveModelDisplay(ctx) {
+export default function effectiveModelDisplay(ctx) {
     if (String(ctx?.apiUrl || '')!=='/api/plugins/_model_config/model_override' || !ctx.response?.ok) return;
     let input;
     try {input=JSON.parse(ctx.request?.body || '{}');} catch {return;}
@@ -16,12 +16,16 @@ export default async function effectiveModelDisplay(ctx) {
     const revision=store._requestyDisplayRevision=(store._requestyDisplayRevision || 0)+1;
     // Clear any older same-chat label while the current identity is resolved.
     store._requestyModelDisplay=null;
-    try {
+    // Display-only enrichment must not delay the native switcher's response.
+    // Sending and selecting models retain their independent server-side checks.
+    void (async()=>{try {
         const native=await ctx.response.clone().json();
-        const status=await callJsonApi('/plugins/requesty/model_status',{context_id:input.context_id});
-        if (revision!==store._requestyDisplayRevision) return;
-        updateModelDisplay(store,input.context_id,current,status,native.override);
-        const eligibility=await callJsonApi('/plugins/requesty/presets',{context_id:input.context_id});
-        if(revision===store._requestyDisplayRevision)updatePresetDisplay(store,input.context_id,current,eligibility);
-    } catch { /* Fall back to the native selector without changing a selection. */ }
+        const status=callJsonApi('/plugins/requesty/model_status',{context_id:input.context_id}).then(value=>{
+            if(revision===store._requestyDisplayRevision)updateModelDisplay(store,input.context_id,current,value,native.override);
+        });
+        const eligibility=callJsonApi('/plugins/requesty/presets',{context_id:input.context_id}).then(value=>{
+            if(revision===store._requestyDisplayRevision)updatePresetDisplay(store,input.context_id,current,value);
+        });
+        await Promise.allSettled([status,eligibility]);
+    } catch { /* Fall back to the native selector without changing a selection. */ }})();
 }
