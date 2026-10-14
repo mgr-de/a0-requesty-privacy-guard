@@ -7,6 +7,11 @@ from usr.plugins.requesty.helpers import runtime_guard as guard, scope
 from usr.plugins.requesty.helpers.call_context import tool_agent, owner
 from usr.plugins.requesty.helpers.policy import Policy,PolicyError
 
+# Native Agent instances support weak references used by owned wrappers.
+class NativeAgentStub(SimpleNamespace):
+    pass
+
+
 MODEL={"id":"synthetic/eu","api":"chat","geolocation":"eu","data_retention":False,"data_used_for_training":False}
 
 
@@ -54,7 +59,7 @@ def test_local_endpoint_labels_cannot_hide_remote_hosts(protected):
 
 def test_tool_vision_without_owner_is_guarded(protected):
     context=SimpleNamespace(agent0=None,id='synthetic-root')
-    agent=SimpleNamespace(context=context,config=SimpleNamespace(profile="A"));context.agent0=agent
+    agent=NativeAgentStub(context=context,config=SimpleNamespace(profile="A"));context.agent0=agent
     from unittest.mock import patch
     marker=tool_agent.set(agent)
     try:
