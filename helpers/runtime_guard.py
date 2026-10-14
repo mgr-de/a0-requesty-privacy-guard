@@ -112,10 +112,19 @@ def guarded_kwargs(wrapper, overrides):
     from usr.plugins.requesty.helpers.instance import manager
     instance=manager()
     if instance is not None and instance.read('setup.json',{}).get('native_presets') and not getattr(wrapper,'_requesty_test',False):
-        from usr.plugins.local_privacy_guard.helpers.model_guard import filtered_call,tool_agent as filter_agent
-        from usr.plugins.requesty.helpers.call_context import tool_agent
-        proof=filtered_call.get()
-        agent=tool_agent.get() or filter_agent.get() or (proof[1] if proof and proof[0] is wrapper else None)
+        # Routing/credentials inherit the parent policy; model selection
+        # belongs to the agent whose native getter constructed this wrapper.
+        # A parent tool context remains active while awaiting a subordinate.
+        reference=getattr(wrapper,'_requesty_agent',None)
+        if reference is not None:
+            agent=reference()
+            if agent is None:
+                raise PolicyError('The model owner is unavailable. Rebuild this cached model before requesting.')
+        else:
+            from usr.plugins.local_privacy_guard.helpers.model_guard import filtered_call,tool_agent as filter_agent
+            from usr.plugins.requesty.helpers.call_context import tool_agent
+            proof=filtered_call.get()
+            agent=tool_agent.get() or filter_agent.get() or (proof[1] if proof and proof[0] is wrapper else None)
         if agent is not None:
             from plugins._model_config.helpers import model_config as mc
             role=getattr(wrapper,'_requesty_slot',None)
